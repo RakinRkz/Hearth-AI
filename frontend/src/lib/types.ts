@@ -37,6 +37,19 @@ export interface Conversation {
   metadata: Record<string, unknown>;
 }
 
+// Context window info
+export interface ContextWindow {
+  conversation_id: string;
+  mode: ChatMode;
+  system_prompt: string;
+  messages: { role: string; content: string }[];
+  message_count: number;
+  estimated_tokens: number;
+  context_length: number;
+  usage_percent: number;
+  sources: Array<{ title: string; content: string; url?: string; page?: number }>;
+}
+
 // Document info
 export interface DocumentInfo {
   id: string;

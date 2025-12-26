@@ -8,6 +8,7 @@ import type {
   ChatMode,
   DownloadStatus,
   DownloadableModel,
+  ContextWindow,
 } from './types';
 
 const API_BASE = '/api';
@@ -68,6 +69,26 @@ export async function createConversation(
 
 export async function deleteConversation(id: string): Promise<void> {
   await fetchAPI(`/conversations/${id}`, { method: 'DELETE' });
+}
+
+export async function updateSystemPrompt(
+  id: string,
+  systemPrompt: string
+): Promise<{ success: boolean; system_prompt: string; message: string }> {
+  return fetchAPI(`/conversations/${id}/system-prompt`, {
+    method: 'PUT',
+    body: JSON.stringify({ system_prompt: systemPrompt }),
+  });
+}
+
+export async function getContextWindow(
+  id: string,
+  query?: string
+): Promise<ContextWindow> {
+  const url = query
+    ? `/conversations/${id}/context?query=${encodeURIComponent(query)}`
+    : `/conversations/${id}/context`;
+  return fetchAPI(url);
 }
 
 // ============== Documents ==============

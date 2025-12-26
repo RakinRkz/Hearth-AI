@@ -119,3 +119,98 @@ async def delete_conversation(conversation_id: str):
         raise HTTPException(status_code=404, detail="Conversation not found")
     
     return {"success": True, "message": "Conversation deleted"}
+
+
+@router.put("/{conversation_id}/system-prompt")
+async def update_system_prompt(conversation_id: str, data: dict):
+    """Update the system prompt for a conversation."""
+    chat_service = get_chat_service()
+    if not chat_service:
+        raise HTTPException(status_code=503, detail="Chat service not available")
+    
+    conversation = chat_service.load_conversation(conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    new_prompt = data.get("system_prompt", "").strip()
+    if not new_prompt:
+        raise HTTPException(status_code=400, detail="System prompt cannot be empty")
+    
+    conversation.system_prompt = new_prompt
+    chat_service.save_conversation()
+    
+    return {
+        "success": True,
+        "system_prompt": conversation.system_prompt,
+        "message": "System prompt updated"
+    }
+
+
+@router.get("/{conversation_id}/context")
+async def get_context_window(conversation_id: str, query: str = ""):
+    """
+    Get the current context window content that would be sent to the LLM.
+    
+    Args:
+        conversation_id: The conversation ID
+        query: Optional query to simulate context generation for RAG/Search modes
+    """
+    chat_service = get_chat_service()
+    if not chat_service:
+        raise HTTPException(status_code=503, detail="Chat service not available")
+    
+    conversation = chat_service.load_conversation(conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    # Build context info
+    system_prompt = conversation.system_prompt
+    mode = chat_service.get_mode().value
+    sources = []
+    
+    # If query provided, simulate what context would be added
+    if query:
+        if mode == "rag" and chat_service.rag_service:
+            context, rag_sources = chat_service.rag_service.get_context_for_query(query)
+            if context:
+                system_prompt = chat_service.RAG_SYSTEM_TEMPLATE.format(context=context)
+                sources = rag_sources
+        elif mode == "search" and chat_service.search_service:
+            context, search_sources = chat_service.search_service.get_context_for_query(query)
+            if context:
+                system_prompt = chat_service.SEARCH_SYSTEM_TEMPLATE.format(context=context)
+                sources = search_sources
+    
+    # Build messages preview
+    messages = [{"role": "system", "content": system_prompt}]
+    
+    # Add conversation history (same logic as _prepare_messages)
+    history = conversation.messages
+    if len(history) > 6:
+        history = history[-6:]
+    
+    for msg in history:
+        messages.append({
+            "role": msg.role.value,
+            "content": msg.content,
+        })
+    
+    # Calculate token estimates (rough approximation: ~4 chars per token)
+    total_chars = sum(len(m["content"]) for m in messages)
+    estimated_tokens = total_chars // 4
+    
+    # Get config for context length
+    from utils.config import get_config
+    config = get_config()
+    
+    return {
+        "conversation_id": conversation_id,
+        "mode": mode,
+        "system_prompt": system_prompt,
+        "messages": messages,
+        "message_count": len(messages),
+        "estimated_tokens": estimated_tokens,
+        "context_length": config.context_length,
+        "usage_percent": round((estimated_tokens / config.context_length) * 100, 1),
+        "sources": sources,
+    }
