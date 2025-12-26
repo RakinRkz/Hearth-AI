@@ -113,14 +113,14 @@ ai-app/
 
 ## Implementation Phases
 
-### Phase 1: FastAPI Backend
-- [ ] Create `src/api/main.py` with FastAPI app, CORS middleware
-- [ ] Create `src/api/dependencies.py` with service singletons
-- [ ] Create `src/api/schemas.py` with Pydantic models
-- [ ] Create WebSocket endpoint `/ws/chat` for streaming
-- [ ] Create REST routes for conversations, documents, settings
-- [ ] Create `src/main.py` entry point (uvicorn + static files)
-- [ ] Update `requirements.txt` (add fastapi, uvicorn, websockets)
+### Phase 1: FastAPI Backend ✅
+- [x] Create `src/api/main.py` with FastAPI app, CORS middleware
+- [x] Create `src/api/dependencies.py` with service singletons
+- [x] Create `src/api/schemas.py` with Pydantic models
+- [x] Create WebSocket endpoint `/ws/chat` for streaming
+- [x] Create REST routes for conversations, documents, settings
+- [x] Create `src/main.py` entry point (uvicorn + static files)
+- [x] Update `requirements.txt` (add fastapi, uvicorn, websockets)
 
 ### Phase 2: React Frontend Setup
 - [ ] Scaffold Vite + React + TypeScript in `frontend/`
