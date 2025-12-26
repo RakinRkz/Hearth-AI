@@ -1,6 +1,6 @@
 # AI Chat App
 
-A local, cross-platform AI chat application with RAG and web search capabilities.
+A local, cross-platform AI chat application with RAG and web search capabilities. Now featuring a modern React web interface!
 
 ## Features
 
@@ -8,11 +8,13 @@ A local, cross-platform AI chat application with RAG and web search capabilities
 - 📄 **RAG** - Upload documents (PDF, TXT, MD, DOCX) and ask questions
 - 🌐 **Web Search** - Search the web via DuckDuckGo and get AI-summarized results
 - 🖥️ **Cross-platform** - Works on Windows, Linux, and macOS
-- 🚀 **Easy Setup** - Built-in model downloader for beginners
+- 🌙 **Dark Mode** - Beautiful dark theme by default
+- 🚀 **Web-based** - Access via browser at `http://127.0.0.1:8080`
 
 ## Requirements
 
 - Python 3.11+
+- Node.js 18+ (for frontend development)
 - 4GB+ RAM (8GB+ recommended for larger models)
 
 ## Quick Start
@@ -36,21 +38,37 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. Run the App
+### 3. Build Frontend
+
+```bash
+cd frontend
+npm install
+npm run build
+cd ..
+```
+
+### 4. Run the App
 
 ```bash
 python src/main.py
 ```
 
-### 4. First Run Setup
+Then open **http://127.0.0.1:8080** in your browser.
 
-On first launch, a **Setup Wizard** will guide you:
+### Development Mode
 
-1. Click **"Download & Install"** to download the recommended model (~2.4GB)
-2. Wait for the download to complete
-3. Start chatting!
+For frontend development with hot reload:
 
-**Or skip the wizard** and manually load your own GGUF model from Settings.
+```bash
+# Terminal 1: Start backend
+python src/main.py --port 8080
+
+# Terminal 2: Start frontend dev server
+cd frontend
+npm run dev
+```
+
+Then open **http://localhost:5173** (Vite proxies API requests to backend).
 
 ## Available Models
 
@@ -98,12 +116,15 @@ Simply type your message and press Enter or click Send.
 ```
 ai-app/
 ├── src/
-│   ├── main.py              # Entry point
-│   ├── app.py               # Main application
-│   ├── ui/                  # UI components
-│   ├── services/            # Business logic
+│   ├── main.py              # Entry point (uvicorn)
+│   ├── api/                 # FastAPI routes & schemas
+│   ├── services/            # Business logic (LLM, RAG, Search)
 │   ├── models/              # Data models
 │   └── utils/               # Utilities
+├── frontend/
+│   ├── src/                 # React + TypeScript source
+│   ├── dist/                # Production build
+│   └── package.json
 ├── models/                  # GGUF model files
 ├── data/
 │   ├── conversations/       # Saved chats
@@ -111,6 +132,18 @@ ai-app/
 ├── documents/               # Uploaded documents
 └── requirements.txt
 ```
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Backend | Python 3.11+ / FastAPI |
+| Frontend | Vite + React + TypeScript |
+| Styling | Tailwind CSS |
+| LLM | llama-cpp-python |
+| Vector Store | ChromaDB |
+| Embeddings | sentence-transformers |
+| Web Search | DuckDuckGo (ddgs) |
 
 ## License
 
