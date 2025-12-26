@@ -6,6 +6,8 @@ import type {
   ModelInfo,
   ModelStatus,
   ChatMode,
+  DownloadStatus,
+  DownloadableModel,
 } from './types';
 
 const API_BASE = '/api';
@@ -124,4 +126,42 @@ export async function setMode(mode: ChatMode): Promise<Settings> {
 
 export async function listModels(): Promise<{ models: ModelInfo[] }> {
   return fetchAPI('/settings/models');
+}
+
+// ============== Model Download ==============
+
+export async function getDownloadStatus(): Promise<DownloadStatus> {
+  return fetchAPI('/settings/download/status');
+}
+
+export async function getDownloadableModels(): Promise<{ models: DownloadableModel[] }> {
+  return fetchAPI('/settings/download/models');
+}
+
+export async function startModelDownload(filename?: string): Promise<{
+  status: string;
+  model_name?: string;
+  filename?: string;
+  size_mb?: number;
+  message: string;
+  model_path?: string;
+}> {
+  const url = filename
+    ? `/settings/download/start?filename=${encodeURIComponent(filename)}`
+    : '/settings/download/start';
+  return fetchAPI(url, { method: 'POST' });
+}
+
+export async function cancelModelDownload(): Promise<{ status: string; message: string }> {
+  return fetchAPI('/settings/download/cancel', { method: 'POST' });
+}
+
+export async function reloadServices(): Promise<{
+  success: boolean;
+  status: Record<string, boolean | string[]>;
+  model_loaded: boolean;
+  chat_ready: boolean;
+  model_path: string;
+}> {
+  return fetchAPI('/settings/reload', { method: 'POST' });
 }

@@ -78,14 +78,16 @@ def initialize_services(model_path: Optional[str] = None) -> dict:
     # Resolve model path
     if model_path:
         resolved_model_path = model_path
-    elif config.model_path:
+    elif config.model_path and Path(config.model_path).exists():
+        # Use config path only if file actually exists
         resolved_model_path = config.model_path
     else:
-        # Try to find a model in the models directory
+        # Scan for any available model in the models directory
         models_dir = Path(__file__).parent.parent.parent / config.models_dir
         gguf_files = list(models_dir.glob("*.gguf"))
         if gguf_files:
             resolved_model_path = str(gguf_files[0])
+            print(f"Found model: {resolved_model_path}")
         else:
             resolved_model_path = None
     
@@ -100,7 +102,23 @@ def initialize_services(model_path: Optional[str] = None) -> dict:
             _llm_service.load_model()
             status["llm"] = True
         except Exception as e:
-            status["errors"].append(f"LLM: {str(e)}")
+            # Try falling back to CPU-only if GPU fails
+            if config.gpu_layers != 0:
+                print(f"GPU loading failed: {e}")
+                print("Falling back to CPU-only mode...")
+                try:
+                    _llm_service = LLMService(
+                        model_path=resolved_model_path,
+                        context_length=config.context_length,
+                        gpu_layers=0,  # CPU only
+                    )
+                    _llm_service.load_model()
+                    status["llm"] = True
+                    status["errors"].append("LLM: Using CPU mode (GPU unavailable)")
+                except Exception as e2:
+                    status["errors"].append(f"LLM: {str(e2)}")
+            else:
+                status["errors"].append(f"LLM: {str(e)}")
     else:
         status["errors"].append("LLM: No model file found")
     
@@ -182,3 +200,81 @@ def get_chat_mode() -> Optional[str]:
     if _chat_service:
         return _chat_service.get_mode().value
     return None
+
+
+def initialize_llm_service(model_path: str) -> bool:
+    """
+    Initialize or re-initialize the LLM service with a new model.
+    
+    Args:
+        model_path: Path to the GGUF model file
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    global _llm_service, _chat_service
+    
+    config = get_config()
+    
+    # Unload existing model if any
+    if _llm_service:
+        try:
+            _llm_service.unload_model()
+        except Exception:
+            pass
+        _llm_service = None
+    
+    # Load new model
+    try:
+        _llm_service = LLMService(
+            model_path=model_path,
+            context_length=config.context_length,
+            gpu_layers=config.gpu_layers,
+        )
+        _llm_service.load_model()
+    except Exception as e:
+        # Try falling back to CPU-only if GPU fails
+        if config.gpu_layers != 0:
+            print(f"GPU loading failed: {e}")
+            print("Falling back to CPU-only mode...")
+            try:
+                _llm_service = LLMService(
+                    model_path=model_path,
+                    context_length=config.context_length,
+                    gpu_layers=0,  # CPU only
+                )
+                _llm_service.load_model()
+            except Exception as e2:
+                print(f"Error initializing LLM (CPU fallback): {e2}")
+                return False
+        else:
+            print(f"Error initializing LLM: {e}")
+            return False
+    
+    # Reinitialize chat service with new LLM
+    if _llm_service and _llm_service.is_loaded:
+        data_dir = Path(__file__).parent.parent.parent / config.data_dir
+        _chat_service = ChatService(
+            llm_service=_llm_service,
+            rag_service=_rag_service,
+            search_service=_search_service,
+            conversations_dir=str(data_dir / "conversations"),
+        )
+        return True
+        
+    return False
+
+
+def is_model_needed() -> bool:
+    """Check if model download is needed (no model loaded and none found)."""
+    global _llm_service
+    
+    if _llm_service and _llm_service.is_loaded:
+        return False
+    
+    # Check if any model files exist
+    config = get_config()
+    models_dir = Path(__file__).parent.parent.parent / config.models_dir
+    gguf_files = list(models_dir.glob("*.gguf"))
+    
+    return len(gguf_files) == 0

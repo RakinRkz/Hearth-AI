@@ -78,6 +78,30 @@ export interface ModelStatus {
   loaded: boolean;
   model_path: string | null;
   generating: boolean;
+  needs_download: boolean;
+}
+
+// Download status
+export interface DownloadStatus {
+  is_downloading: boolean;
+  model_name: string;
+  filename: string;
+  bytes_downloaded: number;
+  total_bytes: number;
+  progress_percent: number;
+  status: 'idle' | 'downloading' | 'completed' | 'error' | 'cancelled';
+  error: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+// Available model for download
+export interface DownloadableModel {
+  name: string;
+  filename: string;
+  size_mb: number;
+  description: string;
+  recommended: boolean;
 }
 
 // WebSocket message types

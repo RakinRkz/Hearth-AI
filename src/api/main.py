@@ -50,13 +50,14 @@ async def health_check():
 @app.get("/api/model/status")
 async def model_status():
     """Get model load status."""
-    from api.dependencies import get_llm_service
+    from api.dependencies import get_llm_service, is_model_needed
     
     llm_service = get_llm_service()
     return {
         "loaded": llm_service.is_loaded if llm_service else False,
         "model_path": llm_service.model_path if llm_service else None,
         "generating": llm_service._is_generating if llm_service else False,
+        "needs_download": is_model_needed(),
     }
 
 
