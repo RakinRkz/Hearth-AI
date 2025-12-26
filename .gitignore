@@ -1,0 +1,64 @@
+# Models
+*.gguf
+/models/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Data (keep structure, ignore contents)
+data/conversations/*
+data/vectorstore/*
+!data/conversations/.gitkeep
+!data/vectorstore/.gitkeep
+
+# Documents uploaded by users
+documents/*
+!documents/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node/Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.local
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Build artifacts
+*.spec

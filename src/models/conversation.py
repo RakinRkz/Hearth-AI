@@ -1,0 +1,121 @@
+"""Conversation data model."""
+
+import json
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import List, Dict, Any, Optional
+from uuid import uuid4
+
+from .message import Message, MessageRole
+
+
+@dataclass
+class Conversation:
+    """A conversation containing multiple messages."""
+    id: str = field(default_factory=lambda: str(uuid4()))
+    title: str = "New Conversation"
+    messages: List[Message] = field(default_factory=list)
+    system_prompt: str = "You are a helpful AI assistant."
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    def add_message(self, role: MessageRole, content: str, **kwargs) -> Message:
+        """Add a message to the conversation."""
+        message = Message(role=role, content=content, **kwargs)
+        self.messages.append(message)
+        self.updated_at = datetime.now()
+        
+        # Auto-generate title from first user message
+        if self.title == "New Conversation" and role == MessageRole.USER:
+            self.title = content[:50] + ("..." if len(content) > 50 else "")
+        
+        return message
+    
+    def get_messages_for_llm(self, include_system: bool = True) -> List[Dict[str, str]]:
+        """Get messages formatted for LLM input."""
+        messages = []
+        
+        if include_system and self.system_prompt:
+            messages.append({
+                "role": "system",
+                "content": self.system_prompt
+            })
+        
+        for msg in self.messages:
+            messages.append(msg.to_llm_format())
+        
+        return messages
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert conversation to dictionary for serialization."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "messages": [m.to_dict() for m in self.messages],
+            "system_prompt": self.system_prompt,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "metadata": self.metadata
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Conversation":
+        """Create conversation from dictionary."""
+        return cls(
+            id=data["id"],
+            title=data["title"],
+            messages=[Message.from_dict(m) for m in data["messages"]],
+            system_prompt=data.get("system_prompt", "You are a helpful AI assistant."),
+            created_at=datetime.fromisoformat(data["created_at"]),
+            updated_at=datetime.fromisoformat(data["updated_at"]),
+            metadata=data.get("metadata", {})
+        )
+    
+    def save(self, directory: str) -> str:
+        """Save conversation to a JSON file."""
+        path = Path(directory)
+        path.mkdir(parents=True, exist_ok=True)
+        
+        file_path = path / f"{self.id}.json"
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(self.to_dict(), f, indent=2, ensure_ascii=False)
+        
+        return str(file_path)
+    
+    @classmethod
+    def load(cls, file_path: str) -> "Conversation":
+        """Load conversation from a JSON file."""
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+    
+    def export_markdown(self) -> str:
+        """Export conversation as Markdown."""
+        lines = [f"# {self.title}\n"]
+        lines.append(f"*Created: {self.created_at.strftime('%Y-%m-%d %H:%M')}*\n")
+        
+        if self.system_prompt:
+            lines.append(f"**System Prompt:** {self.system_prompt}\n")
+        
+        lines.append("---\n")
+        
+        for msg in self.messages:
+            role_label = "👤 **User**" if msg.role == MessageRole.USER else "🤖 **Assistant**"
+            lines.append(f"{role_label}:\n\n{msg.content}\n")
+            
+            if msg.sources:
+                lines.append("\n*Sources:*")
+                for source in msg.sources:
+                    if source.url:
+                        lines.append(f"- [{source.title}]({source.url})")
+                    else:
+                        lines.append(f"- {source.title}")
+                        if source.page:
+                            lines[-1] += f" (page {source.page})"
+                lines.append("")
+            
+            lines.append("---\n")
+        
+        return "\n".join(lines)
