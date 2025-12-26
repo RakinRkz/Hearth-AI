@@ -1,15 +1,16 @@
 # AI Chat App - Development Instructions
 
 ## Project Overview
-A local cross-platform desktop AI chat application with RAG and web search capabilities.
+A local cross-platform web-based AI chat application with RAG and web search capabilities.
 
 **Tech Stack:**
 - Python 3.11+
-- CustomTkinter (UI)
+- FastAPI + Uvicorn (Backend API)
+- React 19 + TypeScript + Vite (Frontend)
+- Tailwind CSS v4 (Styling)
 - llama-cpp-python (LLM inference)
-- LangChain (orchestration)
 - ChromaDB (vector store)
-- sentence-transformers (embeddings)
+- fastembed (ONNX-based embeddings)
 - DuckDuckGo Search (web search)
 
 ## Project Structure
@@ -17,20 +18,21 @@ A local cross-platform desktop AI chat application with RAG and web search capab
 ```
 ai-app/
 ├── src/
-│   ├── main.py                  # Entry point - runs the app
-│   ├── app.py                   # App class that creates MainWindow
-│   ├── ui/
-│   │   ├── __init__.py          # Exports: MainWindow, ChatFrame, InputFrame, Sidebar, SettingsWindow, SetupWizard
-│   │   ├── main_window.py       # Main window - wires all services and UI together
-│   │   ├── chat_frame.py        # Scrollable chat with MessageBubble components
-│   │   ├── input_frame.py       # Text input + send button, handles Enter key
-│   │   ├── sidebar.py           # Mode selector, conversation list, document list
-│   │   ├── settings_window.py   # Modal settings dialog with sliders
-│   │   └── setup_wizard.py      # First-run setup wizard for model download
+│   ├── main.py                  # Entry point - starts uvicorn server
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── main.py              # FastAPI app setup with CORS, routes
+│   │   ├── schemas.py           # Pydantic models for API requests/responses
+│   │   ├── dependencies.py      # Service singletons and dependency injection
+│   │   └── routes/
+│   │       ├── chat.py          # WebSocket endpoint for streaming chat
+│   │       ├── conversations.py # REST endpoints for conversation CRUD
+│   │       ├── documents.py     # REST endpoints for document upload/management
+│   │       └── settings.py      # REST endpoints for app settings
 │   ├── services/
 │   │   ├── __init__.py          # Exports all services
 │   │   ├── llm_service.py       # LLMService - wraps llama-cpp-python
-│   │   ├── embedding_service.py # EmbeddingService - wraps sentence-transformers
+│   │   ├── embedding_service.py # EmbeddingService - wraps fastembed (ONNX)
 │   │   ├── rag_service.py       # RAGService - ChromaDB + document chunking
 │   │   ├── search_service.py    # SearchService - DuckDuckGo integration
 │   │   └── chat_service.py      # ChatService - orchestrates modes (Chat/RAG/Search)
@@ -49,6 +51,14 @@ ai-app/
 │   ├── vectorstore/             # ChromaDB persistence
 │   └── config.json              # User settings
 ├── documents/                   # User uploaded documents
+├── frontend/                    # React frontend (Vite + TypeScript)
+│   ├── src/
+│   │   ├── components/          # React components (Sidebar, ChatView, etc.)
+│   │   ├── contexts/            # React contexts (Settings, Chat, Conversation)
+│   │   ├── lib/                 # Utilities, types, API client
+│   │   └── App.tsx              # Main app component
+│   ├── package.json
+│   └── vite.config.ts           # Vite config with API proxy
 ├── requirements.txt             # Python dependencies
 ├── .ai/
 │   ├── plan.md                  # Project plan
@@ -60,9 +70,12 @@ ai-app/
 
 ```
 ┌─────────────────────────────────────────┐
-│           CustomTkinter UI              │
-│  MainWindow → ChatFrame, InputFrame,    │
-│               Sidebar, SettingsWindow   │
+│         React Frontend (Vite)           │
+│  Sidebar, ChatView, MessageInput,       │
+│  SettingsDialog, ConversationList       │
+├─────────────────────────────────────────┤
+│         FastAPI Backend                 │
+│  REST API + WebSocket (streaming chat)  │
 ├─────────────────────────────────────────┤
 │           ChatService                   │
 │  Orchestrates Chat/RAG/Search modes     │
@@ -71,7 +84,7 @@ ai-app/
 │ (ChromaDB) │(DuckDuckGo) │(llama.cpp)   │
 ├────────────┴────────────┴───────────────┤
 │         EmbeddingService                │
-│      (sentence-transformers)            │
+│        (fastembed / ONNX)               │
 └─────────────────────────────────────────┘
 ```
 
@@ -84,7 +97,8 @@ ai-app/
 - Configure: `context_length`, `gpu_layers`, `temperature`, `top_p`
 
 ### EmbeddingService (`services/embedding_service.py`)
-- Wraps `sentence-transformers` for text embeddings
+- Wraps `fastembed` (ONNX-based) for text embeddings
+- Avoids CUDA library conflicts with llama-cpp-python
 - Default model: `all-MiniLM-L6-v2` (auto-downloads)
 - Methods: `embed()`, `embed_batch()`
 
@@ -183,19 +197,42 @@ Config is auto-saved to `data/config.json`.
 
 ## Running the App
 
+### Development Mode
+
 ```bash
-# Activate virtual environment
+# Terminal 1: Start backend
+cd ai-app
 source venv/bin/activate
-
-# Install all dependencies
 pip install -r requirements.txt
-
-# For GPU support (optional):
-# NVIDIA: CMAKE_ARGS="-DLLAMA_CUDA=on" pip install llama-cpp-python --force-reinstall
-# macOS: CMAKE_ARGS="-DLLAMA_METAL=on" pip install llama-cpp-python --force-reinstall
-
-# Run the app
 python src/main.py
+
+# Terminal 2: Start frontend (for development)
+cd ai-app/frontend
+npm install
+npm run dev
+```
+
+### Production Mode
+
+```bash
+# Build frontend
+cd frontend && npm run build && cd ..
+
+# Start server (serves built frontend)
+source venv/bin/activate
+python src/main.py
+```
+
+Access at: http://localhost:8080
+
+### GPU Support (Optional)
+
+```bash
+# NVIDIA:
+CMAKE_ARGS="-DLLAMA_CUDA=on" pip install llama-cpp-python --force-reinstall
+
+# macOS:
+CMAKE_ARGS="-DLLAMA_METAL=on" pip install llama-cpp-python --force-reinstall
 ```
 
 ## Using the App
@@ -238,30 +275,47 @@ The Setup Wizard offers these recommended models:
 
 ## Dependencies
 
+### Backend (Python)
 ```txt
-# Core UI
-customtkinter>=5.2.0
-pillow>=10.0.0
+# API
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+websockets>=13.0
 
 # LLM
-llama-cpp-python>=0.2.0
+llama-cpp-python>=0.3.0
 
-# LangChain & RAG
-langchain>=0.3.0
-langchain-community>=0.3.0
-chromadb>=0.4.0
-sentence-transformers>=2.2.0
+# RAG & Vector Store
+chromadb>=1.0.0
+fastembed>=0.7.0  # ONNX-based (avoids CUDA conflicts)
 
 # Document Loaders
-pypdf>=3.0.0
-python-docx>=1.0.0
+pypdf>=5.0.0
+python-docx>=1.1.0
 
 # Web Search
-duckduckgo-search>=6.0.0
+duckduckgo-search>=7.0.0
 
-# Config
-pydantic>=2.0.0
-pydantic-settings>=2.0.0
+# Utilities
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+```
+
+### Frontend (Node.js)
+```json
+{
+  "dependencies": {
+    "react": "^19.0.0",
+    "lucide-react": "^0.468.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0",
+    "typescript": "~5.8.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/vite": "^4.0.0"
+  }
+}
 ```
 
 ## Model Recommendations

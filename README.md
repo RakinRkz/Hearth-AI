@@ -138,11 +138,11 @@ ai-app/
 | Component | Technology |
 |-----------|------------|
 | Backend | Python 3.11+ / FastAPI |
-| Frontend | Vite + React + TypeScript |
-| Styling | Tailwind CSS |
+| Frontend | Vite + React 19 + TypeScript |
+| Styling | Tailwind CSS v4 |
 | LLM | llama-cpp-python |
 | Vector Store | ChromaDB |
-| Embeddings | sentence-transformers |
+| Embeddings | fastembed (ONNX) |
 | Web Search | DuckDuckGo (ddgs) |
 
 ## License
