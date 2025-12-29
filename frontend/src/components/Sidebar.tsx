@@ -31,6 +31,7 @@ export function Sidebar({ onSettingsClick }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     conversations,
+    activeConversation,
     activeId,
     loadConversation,
     createConversation,
@@ -87,6 +88,12 @@ export function Sidebar({ onSettingsClick }: SidebarProps) {
   };
 
   const handleNewChat = async () => {
+    // If we already have an active conversation with no messages, just clear and stay
+    if (activeConversation && activeConversation.messages.length === 0) {
+      clearMessages();
+      return;
+    }
+    // Otherwise create a new conversation
     clearMessages();
     await createConversation();
   };

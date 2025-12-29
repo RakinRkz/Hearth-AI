@@ -310,3 +310,44 @@ async def reload_services():
         "chat_ready": chat_service is not None,
         "model_path": model_path,
     }
+
+
+@router.post("/models/switch")
+async def switch_model(model_path: str):
+    """
+    Switch to a different model.
+    
+    Args:
+        model_path: Full path to the model file to load
+    """
+    from api.dependencies import initialize_llm_service, get_llm_service
+    
+    # Validate model exists
+    path = Path(model_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"Model file not found: {model_path}")
+    
+    if not path.suffix == ".gguf":
+        raise HTTPException(status_code=400, detail="Invalid model file format. Must be .gguf")
+    
+    # Initialize with new model
+    try:
+        success = initialize_llm_service(str(path))
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to load model")
+        
+        # Update config
+        config_manager = get_config_manager()
+        config_manager.update(model_path=str(path))
+        
+        llm_service = get_llm_service()
+        
+        return {
+            "success": True,
+            "model_path": str(path),
+            "model_name": path.name,
+            "loaded": llm_service.is_loaded if llm_service else False,
+            "message": f"Successfully switched to {path.name}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to switch model: {str(e)}")

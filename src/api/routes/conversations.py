@@ -107,6 +107,34 @@ async def get_conversation(conversation_id: str):
     )
 
 
+@router.delete("/all")
+async def delete_all_conversations():
+    """Delete all conversations."""
+    chat_service = get_chat_service()
+    if not chat_service:
+        raise HTTPException(status_code=503, detail="Chat service not available")
+    
+    # Get list of all conversations
+    conversations = chat_service.list_conversations()
+    deleted_count = 0
+    
+    for conv in conversations:
+        try:
+            if chat_service.delete_conversation(conv["id"]):
+                deleted_count += 1
+        except Exception as e:
+            print(f"Failed to delete conversation {conv['id']}: {e}")
+    
+    # Clear current conversation
+    chat_service.new_conversation()
+    
+    return {
+        "success": True,
+        "deleted_count": deleted_count,
+        "message": f"Deleted {deleted_count} conversations"
+    }
+
+
 @router.delete("/{conversation_id}")
 async def delete_conversation(conversation_id: str):
     """Delete a conversation."""

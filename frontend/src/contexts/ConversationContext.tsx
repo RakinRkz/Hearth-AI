@@ -44,6 +44,7 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Load conversations list on startup (but don't auto-select any)
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);

@@ -29,7 +29,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const { activeId, loadConversations } = useConversations();
+  const { activeId, loadConversations, loadConversation } = useConversations();
 
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -62,6 +62,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             setIsGenerating(false);
             // Refresh conversation list to update titles
             loadConversations();
+            // If a new conversation was created, load it to set it as active
+            if (data.conversation_id && data.conversation_id !== activeId) {
+              loadConversation(data.conversation_id);
+            }
             break;
             
           case 'error':
@@ -91,7 +95,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     wsRef.current = ws;
     return ws;
-  }, [loadConversations]);
+  }, [loadConversations, loadConversation, activeId]);
 
   const sendMessage = useCallback((content: string) => {
     if (!content.trim() || isGenerating) return;

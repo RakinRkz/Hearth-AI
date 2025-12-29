@@ -105,8 +105,10 @@ async def websocket_chat(websocket: WebSocket):
                 
                 # Load or create conversation
                 if conversation_id:
+                    # Load existing conversation
                     chat_service.load_conversation(conversation_id)
-                elif not chat_service.current_conversation:
+                else:
+                    # No conversation_id means new chat - always create fresh
                     chat_service.new_conversation()
                 
                 # Send status: generating

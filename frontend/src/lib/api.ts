@@ -71,6 +71,14 @@ export async function deleteConversation(id: string): Promise<void> {
   await fetchAPI(`/conversations/${id}`, { method: 'DELETE' });
 }
 
+export async function deleteAllConversations(): Promise<{
+  success: boolean;
+  deleted_count: number;
+  message: string;
+}> {
+  return fetchAPI('/conversations/all', { method: 'DELETE' });
+}
+
 export async function updateSystemPrompt(
   id: string,
   systemPrompt: string
@@ -185,4 +193,16 @@ export async function reloadServices(): Promise<{
   model_path: string;
 }> {
   return fetchAPI('/settings/reload', { method: 'POST' });
+}
+
+export async function switchModel(modelPath: string): Promise<{
+  success: boolean;
+  model_path: string;
+  model_name: string;
+  loaded: boolean;
+  message: string;
+}> {
+  return fetchAPI(`/settings/models/switch?model_path=${encodeURIComponent(modelPath)}`, {
+    method: 'POST',
+  });
 }
