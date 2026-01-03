@@ -6,10 +6,22 @@ import { ContextDialog } from '../ContextDialog';
 import { Bot, Settings2 } from 'lucide-react';
 
 export function ChatView() {
-  const { messages, streamingContent, isGenerating } = useChat();
+  const { messages, streamingContent, isGenerating, setMessages } = useChat();
   const { activeConversation, setActiveConversation } = useConversations();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [contextDialogOpen, setContextDialogOpen] = useState(false);
+  const [lastSyncedId, setLastSyncedId] = useState<string | null>(null);
+
+  // Sync messages when active conversation changes
+  useEffect(() => {
+    if (activeConversation && activeConversation.id !== lastSyncedId) {
+      setMessages(activeConversation.messages || []);
+      setLastSyncedId(activeConversation.id);
+    } else if (!activeConversation && lastSyncedId !== null) {
+      setMessages([]);
+      setLastSyncedId(null);
+    }
+  }, [activeConversation, lastSyncedId, setMessages]);
 
   // Auto-scroll to bottom when new content arrives
   useEffect(() => {
@@ -18,8 +30,8 @@ export function ChatView() {
     }
   }, [messages, streamingContent]);
 
-  // Load messages from active conversation
-  const displayMessages = activeConversation?.messages ?? messages;
+  // Always use messages from ChatContext (which are synced with active conversation)
+  const displayMessages = messages;
 
   const handleSystemPromptUpdate = (newPrompt: string) => {
     if (activeConversation) {

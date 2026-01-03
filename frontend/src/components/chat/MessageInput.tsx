@@ -2,12 +2,12 @@ import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { useChat } from '../../contexts/ChatContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { cn } from '../../lib/utils';
-import { Send, Square, MessageSquare, Search, FileText } from 'lucide-react';
+import { Send, MessageSquare, Search, FileText } from 'lucide-react';
 
 export function MessageInput() {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { sendMessage, cancelGeneration, isGenerating } = useChat();
+  const { sendMessage, isGenerating } = useChat();
   const { mode } = useSettings();
 
   // Auto-resize textarea
@@ -79,34 +79,20 @@ export function MessageInput() {
             )}
           />
 
-          {/* Send / Cancel button */}
-          {isGenerating ? (
-            <button
-              onClick={cancelGeneration}
-              className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-lg',
-                'bg-destructive text-destructive-foreground',
-                'hover:bg-destructive/90 transition-colors'
-              )}
-              title="Stop generating"
-            >
-              <Square className="h-4 w-4" />
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={!input.trim()}
-              className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-lg',
-                'bg-primary text-primary-foreground',
-                'hover:bg-primary/90 transition-colors',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
-              title="Send message"
-            >
-              <Send className="h-4 w-4" />
-            </button>
-          )}
+          {/* Send button */}
+          <button
+            onClick={handleSubmit}
+            disabled={!input.trim() || isGenerating}
+            className={cn(
+              'flex h-10 w-10 items-center justify-center rounded-lg',
+              'bg-primary text-primary-foreground',
+              'hover:bg-primary/90 transition-colors',
+              'disabled:opacity-50 disabled:cursor-not-allowed'
+            )}
+            title="Send message"
+          >
+            <Send className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Mode hint */}
