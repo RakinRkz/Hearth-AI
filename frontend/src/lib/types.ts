@@ -9,6 +9,18 @@ export interface Source {
   page?: number;
 }
 
+// Search result info for display
+export interface SearchResult {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+export interface SearchMetadata {
+  query: string;
+  results: SearchResult[];
+}
+
 // Chat message
 export interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -16,6 +28,7 @@ export interface Message {
   timestamp: string;
   sources: Source[];
   metadata: Record<string, unknown>;
+  searchMetadata?: SearchMetadata;
 }
 
 // Conversation summary for listing
@@ -125,10 +138,12 @@ export interface WSMessageIn {
 }
 
 export interface WSMessageOut {
-  type: 'token' | 'complete' | 'error' | 'status';
+  type: 'token' | 'complete' | 'error' | 'status' | 'search_info';
   content?: string;
   message?: Message;
   sources?: Source[];
   generating?: boolean;
   conversation_id?: string;
+  query?: string;
+  results?: SearchResult[];
 }

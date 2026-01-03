@@ -122,6 +122,7 @@ async def websocket_chat(websocket: WebSocket):
                     # Run streaming in thread to not block
                     response_text = ""
                     sources = []
+                    search_metadata = None
                     
                     # Add user message first
                     chat_service.current_conversation.add_message(
@@ -129,7 +130,7 @@ async def websocket_chat(websocket: WebSocket):
                     )
                     
                     # Prepare messages
-                    messages, sources_data = chat_service._prepare_messages(content)
+                    messages, sources_data, search_metadata = chat_service._prepare_messages(content)
                     sources = [
                         {
                             "title": s.title,
@@ -139,6 +140,14 @@ async def websocket_chat(websocket: WebSocket):
                         }
                         for s in sources_data
                     ]
+                    
+                    # Send search metadata if available (before streaming starts)
+                    if search_metadata:
+                        await websocket.send_json({
+                            "type": "search_info",
+                            "query": search_metadata["query"],
+                            "results": search_metadata["results"]
+                        })
                     
                     # Stream tokens
                     llm_service = get_llm_service()

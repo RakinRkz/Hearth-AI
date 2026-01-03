@@ -43,6 +43,23 @@ Search Results:
 {context}
 """
     
+    SEARCH_QUERY_OPTIMIZATION_PROMPT = """Extract optimal web search keywords from the user's question.
+Return ONLY the search keywords, nothing else. Be concise (3-7 words).
+Remove filler words. Focus on key terms that will get relevant search results.
+
+Examples:
+User: "What's the latest news about Tesla's stock price and how it's been performing?"
+Search: Tesla stock price news 2026
+
+User: "Can you tell me what happened in the recent earthquake in Japan?"
+Search: Japan earthquake recent news
+
+User: "Who won the Super Bowl this year and what was the final score?"
+Search: Super Bowl 2026 winner final score
+
+User: "{question}"
+Search:"""
+    
     def __init__(
         self,
         llm_service: LLMService,
@@ -113,15 +130,70 @@ Search Results:
             return True
         return False
     
+    def _optimize_search_query(self, user_message: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> str:
+        """Use LLM to extract optimal search keywords from conversation context."""
+        if not self.llm_service or not self.llm_service.is_loaded:
+            print("[DEBUG] LLM not available, using original query")
+            return user_message
+        
+        try:
+            # Build context from conversation history if available
+            context_text = ""
+            if conversation_history and len(conversation_history) > 1:
+                # Include last few exchanges for context (excluding current user message)
+                recent_history = conversation_history[-6:]  # Last 3 exchanges
+                context_parts = []
+                for msg in recent_history:
+                    role = "Human" if msg["role"] == "user" else "Assistant"
+                    context_parts.append(f"{role}: {msg['content'][:200]}...")  # Truncate for brevity
+                context_text = f"Conversation context:\n" + "\n".join(context_parts) + f"\n\nCurrent question: {user_message}"
+            else:
+                context_text = user_message
+            
+            prompt = self.SEARCH_QUERY_OPTIMIZATION_PROMPT.format(question=context_text)
+            
+            # Format as chat messages for the LLM
+            messages = [
+                {"role": "user", "content": prompt}
+            ]
+            
+            # Quick generation with low max_tokens for speed
+            result = self.llm_service.generate(
+                messages=messages,
+                max_tokens=30,
+                temperature=0.1,  # Low temp for consistent output
+                stop=["\n", "User:", "Search:"],
+            )
+            
+            optimized = result.strip()
+            
+            # Validate result - if empty or too long, use original
+            if not optimized or len(optimized) > 100 or len(optimized) < 3:
+                print(f"[DEBUG] Query optimization failed, using original")
+                return user_message
+            
+            print(f"[DEBUG] Optimized query: '{user_message}' -> '{optimized}'")
+            return optimized
+            
+        except Exception as e:
+            print(f"[DEBUG] Query optimization error: {e}, using original")
+            return user_message
+    
     def _prepare_messages(
         self, 
         user_message: str
-    ) -> tuple[List[Dict[str, str]], List[Source]]:
-        """Prepare messages for LLM based on current mode."""
+    ) -> tuple[List[Dict[str, str]], List[Source], Optional[Dict[str, Any]]]:
+        """Prepare messages for LLM based on current mode.
+        
+        Returns:
+            Tuple of (messages, sources, search_metadata)
+            search_metadata contains 'query' and 'results' when in search mode
+        """
         if not self.current_conversation:
             self.new_conversation()
         
         sources = []
+        search_metadata = None
         system_prompt = self.current_conversation.system_prompt
         
         # Handle RAG mode
@@ -140,8 +212,19 @@ Search Results:
         
         # Handle Search mode
         elif self.mode == ChatMode.SEARCH and self.search_service:
-            print(f"[DEBUG] Search mode active, searching for: {user_message}")
-            context, search_sources = self.search_service.get_context_for_query(user_message)
+            # Build conversation history for context (before adding current message)
+            history = self.current_conversation.messages
+            conversation_context = []
+            
+            # Convert to LLM format for context
+            for msg in history:
+                conversation_context.append(msg.to_llm_format())
+            
+            # Optimize the search query using LLM with full conversation context
+            optimized_query = self._optimize_search_query(user_message, conversation_context)
+            print(f"[DEBUG] Search mode active, original: '{user_message}' -> optimized: '{optimized_query}'")
+            
+            context, search_sources = self.search_service.get_context_for_query(optimized_query)
             print(f"[DEBUG] Search returned {len(search_sources)} sources, context length: {len(context)}")
             if context:
                 system_prompt = self.SEARCH_SYSTEM_TEMPLATE.format(context=context)
@@ -153,6 +236,14 @@ Search Results:
                     )
                     for s in search_sources
                 ]
+                # Include search metadata for UI display
+                search_metadata = {
+                    "query": optimized_query,
+                    "results": [
+                        {"title": s["title"], "url": s.get("url", ""), "snippet": s["content"][:150]}
+                        for s in search_sources
+                    ]
+                }
             else:
                 print("[DEBUG] No search context returned!")
         
@@ -174,7 +265,7 @@ Search Results:
         print(f"[DEBUG] Prepared {len(messages)} messages for LLM")
         print(f"[DEBUG] System prompt length: {len(system_prompt)}")
         
-        return messages, sources
+        return messages, sources, search_metadata
     
     def send_message(
         self,

@@ -4,9 +4,10 @@ import {
   useState,
   useCallback,
   useRef,
+  useEffect,
   type ReactNode,
 } from 'react';
-import type { Message, WSMessageOut } from '../lib/types';
+import type { Message, WSMessageOut, SearchMetadata } from '../lib/types';
 import { useConversations } from './ConversationContext';
 
 interface ChatContextType {
@@ -14,6 +15,7 @@ interface ChatContextType {
   streamingContent: string;
   isGenerating: boolean;
   error: string | null;
+  pendingSearchMetadata: SearchMetadata | null;
   sendMessage: (content: string) => void;
   cancelGeneration: () => void;
   clearMessages: () => void;
@@ -28,8 +30,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [streamingContent, setStreamingContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingSearchMetadata, setPendingSearchMetadata] = useState<SearchMetadata | null>(null);
+  const pendingSearchMetadataRef = useRef<SearchMetadata | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const { activeId, loadConversations, loadConversation } = useConversations();
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    pendingSearchMetadataRef.current = pendingSearchMetadata;
+  }, [pendingSearchMetadata]);
 
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -53,10 +62,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           case 'token':
             setStreamingContent((prev) => prev + (data.content || ''));
             break;
+          
+          case 'search_info':
+            // Store search metadata to attach to the upcoming message
+            if (data.query && data.results) {
+              setPendingSearchMetadata({
+                query: data.query,
+                results: data.results,
+              });
+            }
+            break;
             
           case 'complete':
             if (data.message) {
-              setMessages((prev) => [...prev, data.message!]);
+              // Attach pending search metadata to the message (use ref for current value)
+              const messageWithSearch: Message = {
+                ...data.message,
+                searchMetadata: pendingSearchMetadataRef.current || undefined,
+              };
+              setMessages((prev) => [...prev, messageWithSearch]);
+              setPendingSearchMetadata(null);
             }
             setStreamingContent('');
             setIsGenerating(false);
@@ -72,6 +97,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             setError(data.content || 'Unknown error');
             setStreamingContent('');
             setIsGenerating(false);
+            setPendingSearchMetadata(null);
             break;
             
           case 'status':
@@ -158,6 +184,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         streamingContent,
         isGenerating,
         error,
+        pendingSearchMetadata,
         sendMessage,
         cancelGeneration,
         clearMessages,
