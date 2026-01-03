@@ -185,6 +185,10 @@ async def websocket_chat(websocket: WebSocket):
                     # Save conversation
                     chat_service.save_conversation()
                     
+                    # Check if context needs summarization (>70%)
+                    usage = chat_service.get_context_usage()
+                    needs_auto_summary = usage.get("needs_summary", False)
+                    
                     # Send complete message
                     await websocket.send_json({
                         "type": "complete",
@@ -196,8 +200,34 @@ async def websocket_chat(websocket: WebSocket):
                             "metadata": {}
                         },
                         "sources": sources,
-                        "conversation_id": chat_service.current_conversation.id
+                        "conversation_id": chat_service.current_conversation.id,
+                        "context_usage": usage
                     })
+                    
+                    # Auto-summarize if needed
+                    if needs_auto_summary:
+                        await websocket.send_json({
+                            "type": "summarizing",
+                            "status": "summarizing",
+                            "message": "Summarizing context..."
+                        })
+                        
+                        try:
+                            summary = chat_service.summarize_context(keep_recent_messages=4)
+                            new_usage = chat_service.get_context_usage()
+                            
+                            await websocket.send_json({
+                                "type": "summary_complete",
+                                "success": True,
+                                "context_usage": new_usage,
+                                "message": f"Context summarized! Now at {new_usage['usage_percent']}%"
+                            })
+                        except Exception as e:
+                            await websocket.send_json({
+                                "type": "summary_complete",
+                                "success": False,
+                                "message": f"Failed to summarize: {str(e)}"
+                            })
                     
                 except Exception as e:
                     await websocket.send_json({

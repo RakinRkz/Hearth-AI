@@ -2,12 +2,12 @@ import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { useChat } from '../../contexts/ChatContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { cn } from '../../lib/utils';
-import { Send, MessageSquare, Search, FileText } from 'lucide-react';
+import { Send, MessageSquare, Search, FileText, Sparkles } from 'lucide-react';
 
 export function MessageInput() {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { sendMessage, isGenerating } = useChat();
+  const { sendMessage, isGenerating, isSummarizing } = useChat();
   const { mode } = useSettings();
 
   // Auto-resize textarea
@@ -95,11 +95,20 @@ export function MessageInput() {
           </button>
         </div>
 
-        {/* Mode hint */}
+        {/* Mode hint or status */}
         <p className="mt-2 text-center text-xs text-muted-foreground">
-          {mode === 'chat' && 'Direct chat with AI'}
-          {mode === 'rag' && 'Questions answered from your documents'}
-          {mode === 'search' && 'Answers with web search results'}
+          {isSummarizing ? (
+            <span className="flex items-center justify-center gap-1.5 text-amber-600 dark:text-amber-400">
+              <Sparkles className="h-3 w-3 animate-pulse" />
+              Summarizing context... Your message will be sent after
+            </span>
+          ) : (
+            <>
+              {mode === 'chat' && 'Direct chat with AI'}
+              {mode === 'rag' && 'Questions answered from your documents'}
+              {mode === 'search' && 'Answers with web search results'}
+            </>
+          )}
         </p>
       </div>
     </div>

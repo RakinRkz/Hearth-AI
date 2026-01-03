@@ -109,6 +109,49 @@ export async function getContextWindow(
   return fetchAPI(url);
 }
 
+export async function getContextFile(id: string): Promise<{
+  conversation_id: string;
+  content: string;
+  token_count: number;
+  max_tokens: number;
+  usage_percent: number;
+  needs_summary: boolean;
+}> {
+  return fetchAPI(`/conversations/${id}/context-file`);
+}
+
+export async function saveContextFile(
+  id: string,
+  content: string
+): Promise<{
+  success: boolean;
+  token_count: number;
+  usage_percent: number;
+  needs_summary: boolean;
+}> {
+  return fetchAPI(`/conversations/${id}/context-file`, {
+    method: 'PUT',
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function summarizeContext(
+  id: string,
+  keepRecentMessages?: number
+): Promise<{
+  success: boolean;
+  summary: string;
+  token_count: number;
+  usage_percent: number;
+  needs_summary: boolean;
+  message: string;
+}> {
+  return fetchAPI(`/conversations/${id}/summarize-context`, {
+    method: 'POST',
+    body: JSON.stringify({ keep_recent_messages: keepRecentMessages || 4 }),
+  });
+}
+
 // ============== Documents ==============
 
 export async function listDocuments(): Promise<DocumentInfo[]> {

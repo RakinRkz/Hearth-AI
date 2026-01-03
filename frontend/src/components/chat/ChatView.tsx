@@ -3,11 +3,11 @@ import { useChat } from '../../contexts/ChatContext';
 import { useConversations } from '../../contexts/ConversationContext';
 import { MessageBubble } from './MessageBubble';
 import { ContextDialog } from '../ContextDialog';
-import { Bot, Settings2, Search, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { Bot, Settings2, Search, ChevronDown, ChevronRight, ExternalLink, Sparkles } from 'lucide-react';
 import type { SearchMetadata } from '../../lib/types';
 
 export function ChatView() {
-  const { messages, streamingContent, isGenerating, pendingSearchMetadata, setMessages } = useChat();
+  const { messages, streamingContent, isGenerating, isSummarizing, pendingSearchMetadata, setMessages } = useChat();
   const { activeConversation, setActiveConversation } = useConversations();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [contextDialogOpen, setContextDialogOpen] = useState(false);
@@ -128,6 +128,26 @@ export function ChatView() {
                   <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
                   <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
                   <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Summarizing indicator */}
+          {isSummarizing && !isGenerating && (
+            <div className="flex gap-3 px-4 py-6 bg-amber-500/10">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <span className="text-sm text-amber-600 dark:text-amber-400 font-medium">Summarizing context...</span>
+                <p className="text-xs text-muted-foreground">
+                  Compressing conversation history to save space
+                </p>
+                <div className="flex items-center gap-1 pt-1">
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-amber-500 [animation-delay:-0.3s]" />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-amber-500 [animation-delay:-0.15s]" />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-amber-500" />
                 </div>
               </div>
             </div>

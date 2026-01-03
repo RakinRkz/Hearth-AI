@@ -269,3 +269,101 @@ async def get_context_window(conversation_id: str, query: str = ""):
         "usage_percent": round((estimated_tokens / config.context_length) * 100, 1),
         "sources": sources,
     }
+
+
+@router.get("/{conversation_id}/context-file")
+async def get_context_file(conversation_id: str):
+    """Get the current context markdown file content."""
+    chat_service = get_chat_service()
+    if not chat_service:
+        raise HTTPException(status_code=503, detail="Chat service not available")
+    
+    conversation = chat_service.load_conversation(conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    context_content = conversation.load_context(chat_service.conversations_dir)
+    if not context_content:
+        # Generate context file if it doesn't exist
+        conversation.save_context(chat_service.conversations_dir)
+        context_content = conversation.load_context(chat_service.conversations_dir)
+    
+    # Get usage metrics
+    usage = chat_service.get_context_usage()
+    
+    return {
+        "conversation_id": conversation_id,
+        "content": context_content,
+        "token_count": usage["token_count"],
+        "max_tokens": usage["max_tokens"],
+        "usage_percent": usage["usage_percent"],
+        "needs_summary": usage["needs_summary"],
+    }
+
+
+@router.put("/{conversation_id}/context-file")
+async def save_context_file(conversation_id: str, data: dict):
+    """Save the context markdown file content."""
+    chat_service = get_chat_service()
+    if not chat_service:
+        raise HTTPException(status_code=503, detail="Chat service not available")
+    
+    conversation = chat_service.load_conversation(conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    content = data.get("content", "")
+    
+    # Write the context file
+    from pathlib import Path
+    context_file = Path(chat_service.conversations_dir) / f"{conversation_id}.context.md"
+    with open(context_file, "w", encoding="utf-8") as f:
+        f.write(content)
+    
+    # Get updated usage metrics
+    chat_service.current_conversation = conversation
+    usage = chat_service.get_context_usage()
+    
+    return {
+        "success": True,
+        "token_count": usage["token_count"],
+        "usage_percent": usage["usage_percent"],
+        "needs_summary": usage["needs_summary"],
+    }
+
+
+@router.post("/{conversation_id}/summarize-context")
+async def summarize_context(
+    conversation_id: str,
+    data: dict = None
+):
+    """Summarize old messages in the context file."""
+    chat_service = get_chat_service()
+    if not chat_service:
+        raise HTTPException(status_code=503, detail="Chat service not available")
+    
+    conversation = chat_service.load_conversation(conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    # Make it the current conversation for processing
+    chat_service.current_conversation = conversation
+    
+    keep_recent = (data or {}).get("keep_recent_messages", 4)
+    summary = chat_service.summarize_context(keep_recent_messages=keep_recent)
+    
+    if not summary:
+        raise HTTPException(status_code=400, detail="Could not summarize context")
+    
+    # Get updated usage metrics
+    usage = chat_service.get_context_usage()
+    
+    return {
+        "success": True,
+        "summary": summary,
+        "token_count": usage["token_count"],
+        "usage_percent": usage["usage_percent"],
+        "needs_summary": usage["needs_summary"],
+        "message": "Context summarized successfully"
+    }
+

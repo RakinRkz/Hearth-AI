@@ -7,15 +7,17 @@ import {
   useEffect,
   type ReactNode,
 } from 'react';
-import type { Message, WSMessageOut, SearchMetadata } from '../lib/types';
+import type { Message, WSMessageOut, SearchMetadata, ContextUsage } from '../lib/types';
 import { useConversations } from './ConversationContext';
 
 interface ChatContextType {
   messages: Message[];
   streamingContent: string;
   isGenerating: boolean;
+  isSummarizing: boolean;
   error: string | null;
   pendingSearchMetadata: SearchMetadata | null;
+  contextUsage: ContextUsage | null;
   sendMessage: (content: string) => void;
   cancelGeneration: () => void;
   clearMessages: () => void;
@@ -29,8 +31,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [streamingContent, setStreamingContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingSearchMetadata, setPendingSearchMetadata] = useState<SearchMetadata | null>(null);
+  const [contextUsage, setContextUsage] = useState<ContextUsage | null>(null);
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const pendingSearchMetadataRef = useRef<SearchMetadata | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const { activeId, loadConversations, loadConversation } = useConversations();
@@ -39,6 +44,39 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     pendingSearchMetadataRef.current = pendingSearchMetadata;
   }, [pendingSearchMetadata]);
+  
+  // Send pending message after summarization completes
+  useEffect(() => {
+    if (!isSummarizing && pendingUserMessage) {
+      // Use a small delay to ensure state is settled
+      const timer = setTimeout(() => {
+        const messageToSend = pendingUserMessage;
+        setPendingUserMessage(null);
+        
+        // Add user message
+        const userMessage: Message = {
+          role: 'user',
+          content: messageToSend,
+          timestamp: new Date().toISOString(),
+          sources: [],
+          metadata: {},
+        };
+        setMessages((prev) => [...prev, userMessage]);
+        
+        // Connect and send
+        const ws = wsRef.current;
+        if (ws?.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'message',
+            content: messageToSend,
+            conversation_id: activeId,
+          }));
+          setIsGenerating(true);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isSummarizing, pendingUserMessage, activeId]);
 
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -103,6 +141,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           case 'status':
             setIsGenerating(data.generating ?? false);
             break;
+          
+          case 'summarizing':
+            setIsSummarizing(true);
+            break;
+          
+          case 'summary_complete':
+            setIsSummarizing(false);
+            // Update context usage if provided
+            if (data.context_usage) {
+              setContextUsage(data.context_usage);
+            }
+            break;
         }
       } catch (err) {
         console.error('Failed to parse WebSocket message:', err);
@@ -125,6 +175,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const sendMessage = useCallback((content: string) => {
     if (!content.trim() || isGenerating) return;
+    
+    // If summarizing, queue the message
+    if (isSummarizing) {
+      setPendingUserMessage(content.trim());
+      return;
+    }
 
     setError(null);
     
@@ -157,7 +213,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
     
     sendWhenReady();
-  }, [isGenerating, connectWebSocket, activeId]);
+  }, [isGenerating, isSummarizing, connectWebSocket, activeId]);
 
   const cancelGeneration = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -183,8 +239,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         messages,
         streamingContent,
         isGenerating,
+        isSummarizing,
         error,
         pendingSearchMetadata,
+        contextUsage,
         sendMessage,
         cancelGeneration,
         clearMessages,

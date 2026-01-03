@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   X,
   Save,
@@ -6,14 +6,14 @@ import {
   FileText,
   MessageSquare,
   Loader2,
-  ChevronDown,
-  ChevronRight,
   Cpu,
+  Sparkles,
+  AlertTriangle,
   Edit3,
-  Trash2,
+  Eye,
+  Check,
 } from 'lucide-react';
 import * as api from '../lib/api';
-import type { ContextWindow } from '../lib/types';
 
 interface ContextDialogProps {
   open: boolean;
@@ -23,6 +23,15 @@ interface ContextDialogProps {
   onSystemPromptUpdate: (newPrompt: string) => void;
 }
 
+interface ContextFileData {
+  conversation_id: string;
+  content: string;
+  token_count: number;
+  max_tokens: number;
+  usage_percent: number;
+  needs_summary: boolean;
+}
+
 export function ContextDialog({
   open,
   onClose,
@@ -30,31 +39,84 @@ export function ContextDialog({
   currentSystemPrompt,
   onSystemPromptUpdate,
 }: ContextDialogProps) {
-  const [activeTab, setActiveTab] = useState<'prompt' | 'context'>('prompt');
+  const [activeTab, setActiveTab] = useState<'prompt' | 'context'>('context');
   const [systemPrompt, setSystemPrompt] = useState(currentSystemPrompt);
-  const [contextData, setContextData] = useState<ContextWindow | null>(null);
+  const [contextFile, setContextFile] = useState<ContextFileData | null>(null);
+  const [editedContent, setEditedContent] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingContext, setSavingContext] = useState(false);
+  const [contextSaved, setContextSaved] = useState(false);
+  const [summarizing, setSummarizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set());
-  const [testQuery, setTestQuery] = useState('');
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editContent, setEditContent] = useState('');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync system prompt when prop changes
   useEffect(() => {
     setSystemPrompt(currentSystemPrompt);
   }, [currentSystemPrompt]);
 
-  // Load context when tab changes to context or dialog opens
-  const loadContext = useCallback(async (query?: string) => {
+  // Auto-save context file with debounce
+  const saveContextFile = useCallback(async (content: string) => {
+    if (!conversationId) return;
+    
+    setSavingContext(true);
+    setContextSaved(false);
+    try {
+      const result = await api.saveContextFile(conversationId, content);
+      // Update usage metrics
+      if (contextFile) {
+        setContextFile({
+          ...contextFile,
+          content,
+          token_count: result.token_count,
+          usage_percent: result.usage_percent,
+          needs_summary: result.needs_summary,
+        });
+      }
+      setContextSaved(true);
+      setTimeout(() => setContextSaved(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save context');
+    } finally {
+      setSavingContext(false);
+    }
+  }, [conversationId, contextFile]);
+
+  // Debounced auto-save when content changes
+  useEffect(() => {
+    if (!isEditing || !conversationId) return;
+    if (editedContent === contextFile?.content) return;
+    
+    // Clear previous timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    // Set new timeout for auto-save (800ms debounce)
+    saveTimeoutRef.current = setTimeout(() => {
+      saveContextFile(editedContent);
+    }, 800);
+    
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [editedContent, isEditing, conversationId, contextFile?.content, saveContextFile]);
+
+  // Load context file when tab changes or dialog opens
+  const loadContextFile = useCallback(async () => {
     if (!conversationId) return;
 
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getContextWindow(conversationId, query);
-      setContextData(data);
+      const data = await api.getContextFile(conversationId);
+      setContextFile(data);
+      setEditedContent(data.content);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load context');
     } finally {
@@ -64,9 +126,9 @@ export function ContextDialog({
 
   useEffect(() => {
     if (open && activeTab === 'context' && conversationId) {
-      loadContext();
+      loadContextFile();
     }
-  }, [open, activeTab, conversationId, loadContext]);
+  }, [open, activeTab, conversationId, loadContextFile]);
 
   const handleSavePrompt = async () => {
     if (!conversationId) return;
@@ -76,6 +138,8 @@ export function ContextDialog({
     try {
       await api.updateSystemPrompt(conversationId, systemPrompt);
       onSystemPromptUpdate(systemPrompt);
+      setSuccessMessage('System prompt saved');
+      setTimeout(() => setSuccessMessage(null), 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
@@ -83,67 +147,35 @@ export function ContextDialog({
     }
   };
 
-  const toggleMessageExpand = (index: number) => {
-    setExpandedMessages((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  };
+  const handleSummarize = async () => {
+    if (!conversationId) return;
 
-  const handleTestQuery = () => {
-    loadContext(testQuery);
-  };
-
-  const startEditing = (index: number, content: string) => {
-    setEditingIndex(index);
-    setEditContent(content);
-    setExpandedMessages((prev) => new Set(prev).add(index));
-  };
-
-  const cancelEditing = () => {
-    setEditingIndex(null);
-    setEditContent('');
-  };
-
-  const saveEdit = (index: number) => {
-    if (contextData) {
-      const updatedMessages = [...contextData.messages];
-      updatedMessages[index] = { ...updatedMessages[index], content: editContent };
-      setContextData({ ...contextData, messages: updatedMessages });
-    }
-    setEditingIndex(null);
-    setEditContent('');
-  };
-
-  const deleteMessage = (index: number) => {
-    if (contextData) {
-      const updatedMessages = contextData.messages.filter((_, i) => i !== index);
-      setContextData({
-        ...contextData,
-        messages: updatedMessages,
-        message_count: updatedMessages.length,
-        estimated_tokens: updatedMessages.reduce((sum, m) => sum + Math.ceil(m.content.length / 4), 0),
-      });
+    setSummarizing(true);
+    setError(null);
+    try {
+      const result = await api.summarizeContext(conversationId, 4);
+      // Reload context file to get updated content
+      await loadContextFile();
+      setSuccessMessage(`Context summarized! Now at ${result.usage_percent}% usage`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to summarize');
+    } finally {
+      setSummarizing(false);
     }
   };
 
-  const addMessage = (role: 'system' | 'user' | 'assistant') => {
-    if (contextData) {
-      const newMessage = { role, content: '' };
-      const updatedMessages = [...contextData.messages, newMessage];
-      setContextData({
-        ...contextData,
-        messages: updatedMessages,
-        message_count: updatedMessages.length,
-      });
-      // Start editing the new message
-      startEditing(updatedMessages.length - 1, '');
-    }
+  const getUsageColor = (percent: number) => {
+    if (percent > 80) return 'bg-red-500';
+    if (percent > 70) return 'bg-yellow-500';
+    if (percent > 50) return 'bg-blue-500';
+    return 'bg-green-500';
+  };
+
+  const getUsageTextColor = (percent: number) => {
+    if (percent > 80) return 'text-red-400';
+    if (percent > 70) return 'text-yellow-400';
+    return 'text-zinc-400';
   };
 
   if (!open) return null;
@@ -168,6 +200,17 @@ export function ContextDialog({
         {/* Tabs */}
         <div className="flex border-b border-zinc-800">
           <button
+            onClick={() => setActiveTab('context')}
+            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'context'
+                ? 'border-b-2 border-blue-500 text-blue-400'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <MessageSquare className="h-4 w-4" />
+            Context File
+          </button>
+          <button
             onClick={() => setActiveTab('prompt')}
             className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
               activeTab === 'prompt'
@@ -178,24 +221,142 @@ export function ContextDialog({
             <FileText className="h-4 w-4" />
             System Prompt
           </button>
-          <button
-            onClick={() => setActiveTab('context')}
-            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'context'
-                ? 'border-b-2 border-blue-500 text-blue-400'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <MessageSquare className="h-4 w-4" />
-            Context Window
-          </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden">
+        {/* Messages */}
+        <div className="flex-1 overflow-hidden flex flex-col">
           {error && (
-            <div className="mx-6 mt-4 rounded-lg bg-red-500/20 px-4 py-3 text-sm text-red-300">
+            <div className="mx-6 mt-4 rounded-lg bg-red-500/20 px-4 py-3 text-sm text-red-300 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
               {error}
+            </div>
+          )}
+          
+          {successMessage && (
+            <div className="mx-6 mt-4 rounded-lg bg-green-500/20 px-4 py-3 text-sm text-green-300">
+              {successMessage}
+            </div>
+          )}
+
+          {/* Context File Tab */}
+          {activeTab === 'context' && (
+            <div className="flex-1 flex flex-col overflow-hidden p-4">
+              {loading && !contextFile ? (
+                <div className="flex flex-1 items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
+                </div>
+              ) : contextFile ? (
+                <>
+                  {/* Stats Bar */}
+                  <div className="mb-4 flex items-center gap-4 rounded-lg bg-zinc-800 p-4">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-zinc-400">Context Usage</span>
+                        <span className={`text-sm font-medium ${getUsageTextColor(contextFile.usage_percent)}`}>
+                          {contextFile.token_count.toLocaleString()} / {contextFile.max_tokens.toLocaleString()} tokens
+                        </span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-700">
+                        <div
+                          className={`h-full rounded-full transition-all ${getUsageColor(contextFile.usage_percent)}`}
+                          style={{ width: `${Math.min(contextFile.usage_percent, 100)}%` }}
+                        />
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-xs text-zinc-500">
+                        <span>{contextFile.usage_percent}% used</span>
+                        {contextFile.needs_summary && (
+                          <span className="flex items-center gap-1 text-yellow-400">
+                            <AlertTriangle className="h-3 w-3" />
+                            Summarization recommended
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setIsEditing(!isEditing)}
+                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                          isEditing
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                        }`}
+                      >
+                        {isEditing ? <Eye className="h-4 w-4" /> : <Edit3 className="h-4 w-4" />}
+                        {isEditing ? 'Preview' : 'Edit'}
+                      </button>
+                      <button
+                        onClick={loadContextFile}
+                        disabled={loading}
+                        className="flex items-center gap-2 rounded-lg bg-zinc-700 px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-600"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                        Refresh
+                      </button>
+                      <button
+                        onClick={handleSummarize}
+                        disabled={summarizing || !contextFile?.content?.trim()}
+                        className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {summarizing ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        Summarize
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Context Content */}
+                  <div className="flex-1 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-800">
+                    {isEditing ? (
+                      <textarea
+                        value={editedContent}
+                        onChange={(e) => setEditedContent(e.target.value)}
+                        className="h-full w-full resize-none bg-transparent p-4 font-mono text-sm text-zinc-200 focus:outline-none"
+                        placeholder="Context content..."
+                      />
+                    ) : (
+                      <div className="h-full overflow-y-auto p-4">
+                        <MarkdownPreview content={contextFile.content} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
+                    <span>
+                      This is the context sent to the LLM for each response.
+                      {contextFile.needs_summary && ' Click Summarize to compress older messages.'}
+                    </span>
+                    {isEditing && (
+                      <span className="flex items-center gap-1.5">
+                        {savingContext ? (
+                          <>
+                            <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
+                            <span className="text-blue-400">Saving...</span>
+                          </>
+                        ) : contextSaved ? (
+                          <>
+                            <Check className="h-3 w-3 text-green-400" />
+                            <span className="text-green-400">Saved</span>
+                          </>
+                        ) : editedContent !== contextFile.content ? (
+                          <span className="text-yellow-400">Unsaved changes</span>
+                        ) : null}
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center text-zinc-500">
+                  <MessageSquare className="h-12 w-12 mb-3 opacity-50" />
+                  <p>No context available</p>
+                  <p className="text-sm mt-1">Start a conversation to see context here</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -207,7 +368,7 @@ export function ContextDialog({
                   System Prompt
                 </label>
                 <p className="mb-3 text-xs text-zinc-500">
-                  This prompt sets the AI's behavior and personality. It's sent at the start of every conversation.
+                  This prompt sets the AI's behavior and personality. It's included at the start of every context.
                 </p>
               </div>
               <textarea
@@ -235,223 +396,74 @@ export function ContextDialog({
               </div>
             </div>
           )}
-
-          {/* Context Window Tab */}
-          {activeTab === 'context' && (
-            <div className="flex h-full flex-col overflow-hidden">
-              {/* Test Query Input */}
-              <div className="border-b border-zinc-800 p-4">
-                <label className="mb-2 block text-sm font-medium text-zinc-300">
-                  Test Query (for RAG/Search preview)
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={testQuery}
-                    onChange={(e) => setTestQuery(e.target.value)}
-                    placeholder="Enter a test query to see how context would be generated..."
-                    className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-200 placeholder-zinc-500 focus:border-blue-500 focus:outline-none"
-                  />
-                  <button
-                    onClick={handleTestQuery}
-                    disabled={loading}
-                    className="flex items-center gap-2 rounded-lg bg-zinc-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-600"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                    Test
-                  </button>
-                </div>
-              </div>
-
-              {/* Context Info */}
-              {loading && !contextData ? (
-                <div className="flex flex-1 items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
-                </div>
-              ) : contextData ? (
-                <div className="flex-1 overflow-y-auto p-4">
-                  {/* Stats Bar */}
-                  <div className="mb-4 grid grid-cols-4 gap-3">
-                    <div className="rounded-lg bg-zinc-800 p-3">
-                      <div className="text-xs text-zinc-500">Mode</div>
-                      <div className="mt-1 text-sm font-medium text-zinc-200 capitalize">
-                        {contextData.mode}
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-zinc-800 p-3">
-                      <div className="text-xs text-zinc-500">Messages</div>
-                      <div className="mt-1 text-sm font-medium text-zinc-200">
-                        {contextData.message_count}
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-zinc-800 p-3">
-                      <div className="text-xs text-zinc-500">Est. Tokens</div>
-                      <div className="mt-1 text-sm font-medium text-zinc-200">
-                        {contextData.estimated_tokens.toLocaleString()}
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-zinc-800 p-3">
-                      <div className="text-xs text-zinc-500">Context Usage</div>
-                      <div className="mt-1 flex items-center gap-2">
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-700">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              contextData.usage_percent > 80
-                                ? 'bg-red-500'
-                                : contextData.usage_percent > 50
-                                ? 'bg-yellow-500'
-                                : 'bg-green-500'
-                            }`}
-                            style={{ width: `${Math.min(contextData.usage_percent, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium text-zinc-200">
-                          {contextData.usage_percent}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Messages Preview */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium text-zinc-300">Context Messages</h4>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => addMessage('system')}
-                          className="rounded px-2 py-1 text-xs bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 transition-colors"
-                        >
-                          + System
-                        </button>
-                        <button
-                          onClick={() => addMessage('user')}
-                          className="rounded px-2 py-1 text-xs bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors"
-                        >
-                          + User
-                        </button>
-                        <button
-                          onClick={() => addMessage('assistant')}
-                          className="rounded px-2 py-1 text-xs bg-green-500/20 text-green-300 hover:bg-green-500/30 transition-colors"
-                        >
-                          + Assistant
-                        </button>
-                      </div>
-                    </div>
-                    {contextData.messages.map((msg, i) => (
-                      <div
-                        key={i}
-                        className="overflow-hidden rounded-lg border border-zinc-700 bg-zinc-800"
-                      >
-                        <div className="flex w-full items-center gap-2 px-3 py-2 hover:bg-zinc-750">
-                          <button onClick={() => toggleMessageExpand(i)} className="flex items-center gap-2 flex-1 text-left">
-                            {expandedMessages.has(i) ? (
-                              <ChevronDown className="h-4 w-4 text-zinc-500" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-zinc-500" />
-                            )}
-                            <span
-                              className={`rounded px-2 py-0.5 text-xs font-medium ${
-                                msg.role === 'system'
-                                  ? 'bg-purple-500/20 text-purple-300'
-                                  : msg.role === 'user'
-                                  ? 'bg-blue-500/20 text-blue-300'
-                                  : 'bg-green-500/20 text-green-300'
-                              }`}
-                            >
-                              {msg.role}
-                            </span>
-                            <span className="flex-1 truncate text-sm text-zinc-400">
-                              {msg.content.slice(0, 100)}
-                              {msg.content.length > 100 ? '...' : ''}
-                            </span>
-                            <span className="text-xs text-zinc-500">
-                              ~{Math.ceil(msg.content.length / 4)} tokens
-                            </span>
-                          </button>
-                          <button
-                            onClick={() => startEditing(i, msg.content)}
-                            className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-blue-400 transition-colors"
-                            title="Edit message"
-                          >
-                            <Edit3 className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => deleteMessage(i)}
-                            className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors"
-                            title="Delete message"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        {expandedMessages.has(i) && (
-                          <div className="border-t border-zinc-700 bg-zinc-850 p-3">
-                            {editingIndex === i ? (
-                              <div className="space-y-2">
-                                <textarea
-                                  value={editContent}
-                                  onChange={(e) => setEditContent(e.target.value)}
-                                  className="w-full h-32 resize-none rounded-lg border border-zinc-600 bg-zinc-900 p-3 font-mono text-xs text-zinc-200 focus:border-blue-500 focus:outline-none"
-                                  autoFocus
-                                />
-                                <div className="flex gap-2 justify-end">
-                                  <button
-                                    onClick={cancelEditing}
-                                    className="px-3 py-1.5 rounded text-xs text-zinc-400 hover:bg-zinc-700 transition-colors"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    onClick={() => saveEdit(i)}
-                                    className="px-3 py-1.5 rounded text-xs bg-blue-600 text-white hover:bg-blue-500 transition-colors"
-                                  >
-                                    Save
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <pre className="whitespace-pre-wrap font-mono text-xs text-zinc-300">
-                                {msg.content}
-                              </pre>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Sources (if any) */}
-                  {contextData.sources.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="mb-2 text-sm font-medium text-zinc-300">
-                        Sources ({contextData.sources.length})
-                      </h4>
-                      <div className="space-y-2">
-                        {contextData.sources.map((source, i) => (
-                          <div
-                            key={i}
-                            className="rounded-lg border border-zinc-700 bg-zinc-800 p-3"
-                          >
-                            <div className="text-sm font-medium text-zinc-200">
-                              [{i + 1}] {source.title}
-                            </div>
-                            <p className="mt-1 text-xs text-zinc-400 line-clamp-2">
-                              {source.content}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-1 items-center justify-center text-zinc-500">
-                  No context data available
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </div>
   );
+}
+
+// Markdown preview component with simple formatting
+function MarkdownPreview({ content }: { content: string }) {
+  const lines = content.split('\n');
+  const elements: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // H1 Header
+    if (line.startsWith('# ')) {
+      elements.push(
+        <h1 key={i} className="text-lg font-bold text-blue-400 mt-4 mb-2 first:mt-0">
+          {line.slice(2)}
+        </h1>
+      );
+    }
+    // H2 Header (Role markers)
+    else if (line.startsWith('## ')) {
+      const role = line.slice(3);
+      const isUser = role.toLowerCase() === 'user';
+      const isAssistant = role.toLowerCase() === 'assistant';
+      const isSummary = role.toLowerCase().includes('summary');
+      
+      elements.push(
+        <div
+          key={i}
+          className={`inline-block mt-4 mb-2 first:mt-0 px-2 py-1 rounded text-xs font-semibold ${
+            isUser
+              ? 'bg-blue-500/20 text-blue-300'
+              : isAssistant
+              ? 'bg-green-500/20 text-green-300'
+              : isSummary
+              ? 'bg-purple-500/20 text-purple-300'
+              : 'bg-zinc-700 text-zinc-300'
+          }`}
+        >
+          {role}
+        </div>
+      );
+    }
+    // Horizontal rule
+    else if (line.trim() === '---') {
+      elements.push(
+        <hr key={i} className="my-4 border-zinc-700" />
+      );
+    }
+    // Empty line
+    else if (line.trim() === '') {
+      elements.push(<div key={i} className="h-2" />);
+    }
+    // Regular text
+    else {
+      elements.push(
+        <p key={i} className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">
+          {line}
+        </p>
+      );
+    }
+
+    i++;
+  }
+
+  return <div className="space-y-0">{elements}</div>;
 }

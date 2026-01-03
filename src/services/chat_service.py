@@ -96,8 +96,28 @@ Search:"""
     def save_conversation(self) -> Optional[str]:
         """Save the current conversation."""
         if self.current_conversation:
-            return self.current_conversation.save(self.conversations_dir)
+            self.current_conversation.save(self.conversations_dir)
+            # Also save context file
+            self.current_conversation.save_context(self.conversations_dir)
+            return self.current_conversation.id
         return None
+    
+    def get_context_usage(self) -> Dict[str, Any]:
+        """Get current context usage metrics."""
+        if not self.current_conversation:
+            return {"usage_percent": 0, "token_count": 0, "max_tokens": 8000, "needs_summary": False}
+        
+        token_count = self.current_conversation.get_context_token_count(self.conversations_dir)
+        max_tokens = 8000  # Typical context window
+        usage_percent = (token_count / max_tokens) * 100
+        needs_summary = usage_percent > 70
+        
+        return {
+            "usage_percent": round(usage_percent, 1),
+            "token_count": token_count,
+            "max_tokens": max_tokens,
+            "needs_summary": needs_summary
+        }
     
     def list_conversations(self) -> List[Dict[str, Any]]:
         """List all saved conversations."""
@@ -389,6 +409,97 @@ Search:"""
     def set_mode(self, mode: ChatMode) -> None:
         """Set the chat mode."""
         self.mode = mode
+    
+    def summarize_context(self, keep_recent_messages: int = 4) -> Optional[str]:
+        """Summarize old messages in the context file.
+        
+        Keeps the most recent messages intact and summarizes older ones.
+        
+        Args:
+            keep_recent_messages: Number of recent messages to keep intact
+            
+        Returns:
+            Summary text if successful, None otherwise
+        """
+        if not self.current_conversation or not self.llm_service or not self.llm_service.is_loaded:
+            return None
+        
+        try:
+            messages = self.current_conversation.messages
+            if len(messages) == 0:
+                return None  # No messages to summarize
+            
+            # If fewer messages than keep_recent, summarize all and keep none separate
+            if len(messages) <= keep_recent_messages:
+                messages_to_summarize = messages
+                keep_recent_messages = 0
+            else:
+                # Messages to summarize (all except recent ones)
+                messages_to_summarize = messages[:-keep_recent_messages]
+            
+            # Build text to summarize
+            summary_text = f"System Prompt: {self.current_conversation.system_prompt}\n\n"
+            for msg in messages_to_summarize:
+                role = "User" if msg.role == MessageRole.USER else "Assistant"
+                summary_text += f"{role}: {msg.content}\n\n"
+            
+            # Create summarization prompt
+            summarize_prompt = f"""Please create a concise summary of this conversation excerpt. 
+Focus on key information, decisions, and context that would be useful for continuing the conversation.
+Keep the summary under 200 words.
+
+Conversation to summarize:
+{summary_text}
+
+Summary:"""
+            
+            # Generate summary
+            result = self.llm_service.generate(
+                messages=[{"role": "user", "content": summarize_prompt}],
+                max_tokens=256,
+                temperature=0.3,
+            )
+            
+            summary = result.strip()
+            
+            # Update context file with summary
+            context_file = Path(self.conversations_dir) / f"{self.current_conversation.id}.context.md"
+            
+            context_lines = []
+            
+            # System prompt
+            if self.current_conversation.system_prompt:
+                context_lines.append("# System Prompt")
+                context_lines.append(self.current_conversation.system_prompt)
+                context_lines.append("")
+                context_lines.append("---")
+                context_lines.append("")
+            
+            # Add summary
+            context_lines.append("## Summary of Earlier Discussion")
+            context_lines.append(summary)
+            context_lines.append("")
+            context_lines.append("---")
+            context_lines.append("")
+            
+            # Add recent messages (if any kept separate from summary)
+            if keep_recent_messages > 0:
+                for msg in self.current_conversation.messages[-keep_recent_messages:]:
+                    role_header = "## User" if msg.role == MessageRole.USER else "## Assistant"
+                    context_lines.append(role_header)
+                    context_lines.append(msg.content)
+                    context_lines.append("")
+            
+            # Write updated context
+            with open(context_file, "w", encoding="utf-8") as f:
+                f.write("\n".join(context_lines))
+            
+            print(f"[DEBUG] Context summarized successfully. Summary: {len(summary)} chars")
+            return summary
+            
+        except Exception as e:
+            print(f"[DEBUG] Context summarization error: {e}")
+            return None
     
     def get_mode(self) -> ChatMode:
         """Get the current chat mode."""

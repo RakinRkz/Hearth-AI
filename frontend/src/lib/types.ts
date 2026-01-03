@@ -137,8 +137,15 @@ export interface WSMessageIn {
   conversation_id?: string;
 }
 
+export interface ContextUsage {
+  usage_percent: number;
+  token_count: number;
+  max_tokens: number;
+  needs_summary: boolean;
+}
+
 export interface WSMessageOut {
-  type: 'token' | 'complete' | 'error' | 'status' | 'search_info';
+  type: 'token' | 'complete' | 'error' | 'status' | 'search_info' | 'summarizing' | 'summary_complete';
   content?: string;
   message?: Message;
   sources?: Source[];
@@ -146,4 +153,7 @@ export interface WSMessageOut {
   conversation_id?: string;
   query?: string;
   results?: SearchResult[];
+  status?: string;
+  context_usage?: ContextUsage;
+  success?: boolean;
 }
