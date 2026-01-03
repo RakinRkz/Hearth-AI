@@ -408,6 +408,62 @@ function MarkdownPreview({ content }: { content: string }) {
   const elements: React.ReactNode[] = [];
   let i = 0;
 
+  // Helper to render inline markdown
+  const renderInlineMarkdown = (text: string): React.ReactNode[] => {
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    
+    // Pattern: **bold**, *italic*, `code`, ***bold italic***
+    const regex = /(\*\*\*[^\*]+\*\*\*|\*\*[^\*]+\*\*|\*[^\*]+\*|`[^`]+`)/g;
+    let match;
+    
+    while ((match = regex.exec(text)) !== null) {
+      // Add text before match
+      if (match.index > lastIndex) {
+        parts.push(text.slice(lastIndex, match.index));
+      }
+      
+      const matched = match[0];
+      if (matched.startsWith('***') && matched.endsWith('***')) {
+        // Bold italic
+        parts.push(
+          <span key={`${i}-${lastIndex}`} className="font-bold italic text-yellow-300">
+            {matched.slice(3, -3)}
+          </span>
+        );
+      } else if (matched.startsWith('**') && matched.endsWith('**')) {
+        // Bold
+        parts.push(
+          <span key={`${i}-${lastIndex}`} className="font-bold text-yellow-300">
+            {matched.slice(2, -2)}
+          </span>
+        );
+      } else if (matched.startsWith('*') && matched.endsWith('*')) {
+        // Italic
+        parts.push(
+          <span key={`${i}-${lastIndex}`} className="italic text-cyan-300">
+            {matched.slice(1, -1)}
+          </span>
+        );
+      } else if (matched.startsWith('`') && matched.endsWith('`')) {
+        // Inline code
+        parts.push(
+          <code key={`${i}-${lastIndex}`} className="bg-zinc-700 px-1.5 py-0.5 rounded text-orange-300 font-mono text-xs">
+            {matched.slice(1, -1)}
+          </code>
+        );
+      }
+      lastIndex = regex.lastIndex;
+    }
+    
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push(text.slice(lastIndex));
+    }
+    
+    return parts.length > 0 ? parts : [text];
+  };
+
   while (i < lines.length) {
     const line = lines[i];
 
@@ -415,16 +471,17 @@ function MarkdownPreview({ content }: { content: string }) {
     if (line.startsWith('# ')) {
       elements.push(
         <h1 key={i} className="text-lg font-bold text-blue-400 mt-4 mb-2 first:mt-0">
-          {line.slice(2)}
+          {renderInlineMarkdown(line.slice(2))}
         </h1>
       );
     }
-    // H2 Header (Role markers)
+    // H2 Header
     else if (line.startsWith('## ')) {
-      const role = line.slice(3);
-      const isUser = role.toLowerCase() === 'user';
-      const isAssistant = role.toLowerCase() === 'assistant';
-      const isSummary = role.toLowerCase().includes('summary');
+      const headerText = line.slice(3);
+      const role = headerText.toLowerCase();
+      const isUser = role === 'user';
+      const isAssistant = role === 'assistant';
+      const isSummary = role.includes('summary');
       
       elements.push(
         <div
@@ -439,8 +496,24 @@ function MarkdownPreview({ content }: { content: string }) {
               : 'bg-zinc-700 text-zinc-300'
           }`}
         >
-          {role}
+          {headerText}
         </div>
+      );
+    }
+    // H3 Header
+    else if (line.startsWith('### ')) {
+      elements.push(
+        <h3 key={i} className="text-sm font-bold text-indigo-400 mt-3 mb-2">
+          {renderInlineMarkdown(line.slice(4))}
+        </h3>
+      );
+    }
+    // H4 Header
+    else if (line.startsWith('#### ')) {
+      elements.push(
+        <h4 key={i} className="text-sm font-semibold text-violet-400 mt-2 mb-1">
+          {renderInlineMarkdown(line.slice(5))}
+        </h4>
       );
     }
     // Horizontal rule
@@ -457,7 +530,7 @@ function MarkdownPreview({ content }: { content: string }) {
     else {
       elements.push(
         <p key={i} className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">
-          {line}
+          {renderInlineMarkdown(line)}
         </p>
       );
     }

@@ -119,6 +119,36 @@ Search:"""
             "needs_summary": needs_summary
         }
     
+    def get_safe_max_tokens(self, requested_max_tokens: int) -> int:
+        """Calculate safe max_tokens based on remaining context window.
+        
+        Ensures the response won't exceed the context window by:
+        1. Reserving space for current context usage
+        2. Leaving 10% buffer for prompt overhead
+        3. Clamping to valid range
+        
+        Args:
+            requested_max_tokens: User-requested max tokens
+            
+        Returns:
+            Safe max_tokens value that fits in context window
+        """
+        if not self.current_conversation:
+            return max(128, min(requested_max_tokens, 4096))
+        
+        context_window = 8000  # Model's context window
+        current_tokens = self.current_conversation.get_context_token_count(self.conversations_dir)
+        
+        # Reserve 10% buffer for prompt overhead and safety margin
+        reserved_tokens = int(context_window * 0.10)
+        available_tokens = context_window - current_tokens - reserved_tokens
+        
+        # Don't let response exceed available space
+        safe_max = min(requested_max_tokens, max(available_tokens, 128))
+        
+        # Clamp to reasonable range
+        return max(128, min(safe_max, 4096))
+    
     def list_conversations(self) -> List[Dict[str, Any]]:
         """List all saved conversations."""
         conversations = []

@@ -17,35 +17,52 @@ function renderMarkdown(content: string): React.ReactNode[] {
   while (i < lines.length) {
     const line = lines[i];
     
-    // Headers
-    if (line.startsWith('### ')) {
+    // H4 Header
+    if (line.startsWith('#### ')) {
+      const formattedContent = formatInlineMarkdown(line.slice(5));
       result.push(
-        <h3 key={i} className="text-base font-semibold mt-4 mb-2 text-foreground">
-          {line.slice(4)}
+        <h4 key={i} className="text-sm font-semibold mt-3 mb-1 text-violet-300">
+          {formattedContent}
+        </h4>
+      );
+    }
+    // H3 Header
+    else if (line.startsWith('### ')) {
+      const formattedContent = formatInlineMarkdown(line.slice(4));
+      result.push(
+        <h3 key={i} className="text-base font-semibold mt-4 mb-2 text-indigo-300">
+          {formattedContent}
         </h3>
       );
-    } else if (line.startsWith('## ')) {
+    }
+    // H2 Header
+    else if (line.startsWith('## ')) {
+      const formattedContent = formatInlineMarkdown(line.slice(3));
       result.push(
-        <h2 key={i} className="text-lg font-bold mt-4 mb-2 text-foreground">
-          {line.slice(3)}
+        <h2 key={i} className="text-lg font-bold mt-4 mb-2 text-blue-300">
+          {formattedContent}
         </h2>
       );
-    } else if (line.startsWith('# ')) {
+    }
+    // H1 Header
+    else if (line.startsWith('# ')) {
+      const formattedContent = formatInlineMarkdown(line.slice(2));
       result.push(
-        <h1 key={i} className="text-xl font-bold mt-4 mb-2 text-foreground">
-          {line.slice(2)}
+        <h1 key={i} className="text-xl font-bold mt-4 mb-2 text-blue-300">
+          {formattedContent}
         </h1>
       );
     }
-    // Bold and italic
+    // Empty line
     else if (line.trim().length === 0) {
       result.push(<br key={i} />);
     }
     // Lists
     else if (line.match(/^[\*\-\+]\s/)) {
+      const formattedContent = formatInlineMarkdown(line.replace(/^[\*\-\+]\s/, ''));
       result.push(
         <li key={i} className="ml-4 text-foreground">
-          {line.replace(/^[\*\-\+]\s/, '')}
+          {formattedContent}
         </li>
       );
     }
@@ -82,67 +99,79 @@ function renderMarkdown(content: string): React.ReactNode[] {
   return result;
 }
 
-// Handle inline markdown: **bold**, *italic*, `code`, etc.
+// Handle inline markdown: **bold**, *italic*, ***bold italic***, `code`, [text](url)
 function formatInlineMarkdown(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
-  let currentIndex = 0;
+  let lastIndex = 0;
 
-  // Pattern to match **text**, *text*, `text`, [text](url)
-  const regex = /\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|\[(.+?)\]\((.+?)\)/g;
+  // Pattern: ***bold italic***, **bold**, *italic*, `code`, [link](url)
+  // Order matters: check *** before ** and *
+  const regex = /(\*\*\*[^\*]+\*\*\*|\*\*[^\*]+\*\*|\*[^\*]+\*|`[^`]+`|\[([^\]]+)\]\(([^)]+)\))/g;
   let match;
 
   while ((match = regex.exec(text)) !== null) {
     // Add text before match
-    if (match.index > currentIndex) {
-      parts.push(text.slice(currentIndex, match.index));
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
     }
 
-    // Add matched element
-    if (match[1]) {
+    const matched = match[0];
+    
+    if (matched.startsWith('***') && matched.endsWith('***')) {
+      // Bold italic
+      parts.push(
+        <span key={`bolditalic-${lastIndex}`} className="font-semibold italic text-yellow-300">
+          {matched.slice(3, -3)}
+        </span>
+      );
+    } else if (matched.startsWith('**') && matched.endsWith('**')) {
       // **bold**
       parts.push(
-        <strong key={`bold-${currentIndex}`} className="font-semibold">
-          {match[1]}
+        <strong key={`bold-${lastIndex}`} className="font-semibold text-yellow-300">
+          {matched.slice(2, -2)}
         </strong>
       );
-    } else if (match[2]) {
+    } else if (matched.startsWith('*') && matched.endsWith('*')) {
       // *italic*
       parts.push(
-        <em key={`italic-${currentIndex}`} className="italic">
-          {match[2]}
+        <em key={`italic-${lastIndex}`} className="italic text-cyan-300">
+          {matched.slice(1, -1)}
         </em>
       );
-    } else if (match[3]) {
+    } else if (matched.startsWith('`') && matched.endsWith('`')) {
       // `code`
       parts.push(
         <code
-          key={`code-${currentIndex}`}
-          className="bg-secondary/50 px-1.5 py-0.5 rounded text-xs font-mono text-foreground"
+          key={`code-${lastIndex}`}
+          className="bg-orange-500/20 px-1.5 py-0.5 rounded text-xs font-mono text-orange-300"
         >
-          {match[3]}
+          {matched.slice(1, -1)}
         </code>
       );
-    } else if (match[4] && match[5]) {
+    } else if (matched.startsWith('[') && matched.includes('](')) {
       // [link](url)
-      parts.push(
-        <a
-          key={`link-${currentIndex}`}
-          href={match[5]}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-400 hover:text-blue-300 underline"
-        >
-          {match[4]}
-        </a>
-      );
+      const linkMatch = matched.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (linkMatch) {
+        parts.push(
+          <a
+            key={`link-${lastIndex}`}
+            href={linkMatch[2]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 underline"
+          >
+            {linkMatch[1]}
+          </a>
+        );
+      }
     }
 
-    currentIndex = match.index + match[0].length;
+    lastIndex = regex.lastIndex;
   }
 
   // Add remaining text
-  if (currentIndex < text.length) {
-    parts.push(text.slice(currentIndex));
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
   }
 
   return parts.length > 0 ? parts : [text];

@@ -14,6 +14,7 @@ if str(src_dir) not in sys.path:
 
 from api.dependencies import get_chat_service, get_llm_service
 from models.message import MessageRole
+from utils.config import get_config
 
 router = APIRouter()
 
@@ -87,6 +88,8 @@ async def websocket_chat(websocket: WebSocket):
             if msg_type == "message":
                 content = message.get("content", "").strip()
                 conversation_id = message.get("conversation_id")
+                # Allow per-request max_tokens override (ideal for future UX)
+                request_max_tokens = message.get("max_tokens")
                 
                 if not content:
                     await websocket.send_json({
@@ -151,10 +154,19 @@ async def websocket_chat(websocket: WebSocket):
                     
                     # Stream tokens
                     llm_service = get_llm_service()
+                    config = get_config()
+                    
+                    # Determine max_tokens: request override > config > default
+                    max_tokens = request_max_tokens or config.max_tokens
+                    max_tokens = max(128, min(max_tokens, 4096))  # Clamp to valid range
+                    
+                    # Apply smart capping based on remaining context
+                    safe_max_tokens = chat_service.get_safe_max_tokens(max_tokens)
+                    
                     for token in llm_service.generate_stream(
                         messages=messages,
-                        max_tokens=1024,
-                        temperature=0.7,
+                        max_tokens=safe_max_tokens,
+                        temperature=config.temperature,
                     ):
                         response_text += token
                         await websocket.send_json({
