@@ -16,6 +16,8 @@ import {
   File,
   X,
   Loader2,
+  Edit2,
+  Check,
 } from 'lucide-react';
 import type { ChatMode, DocumentInfo } from '../lib/types';
 import * as api from '../lib/api';
@@ -335,11 +337,83 @@ interface ConversationItemProps {
 }
 
 function ConversationItem({
+  id,
   title,
   isActive,
   onClick,
   onDelete,
 }: ConversationItemProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { loadConversations } = useConversations();
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleSaveTitle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (editedTitle.trim() && editedTitle !== title) {
+      try {
+        await api.renameConversation(id, editedTitle.trim());
+        // Reload conversations to update the list
+        await loadConversations();
+      } catch (err) {
+        console.error('Failed to rename conversation:', err);
+        setEditedTitle(title);
+      }
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditedTitle(title);
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      handleSaveTitle(e as any);
+    } else if (e.key === 'Escape') {
+      handleCancel(e as any);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={cn(
+          'group flex w-full items-center gap-2 rounded-lg px-3 py-2',
+          'bg-sidebar-accent text-sidebar-accent-foreground'
+        )}
+      >
+        <MessageSquare className="h-4 w-4 shrink-0" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={editedTitle}
+          onChange={(e) => setEditedTitle(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="flex-1 bg-transparent outline-none text-sm"
+        />
+        <button
+          onClick={handleSaveTitle}
+          className="rounded p-1 hover:bg-white/20"
+          title="Save"
+        >
+          <Check className="h-3 w-3" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       onClick={onClick}
@@ -356,6 +430,20 @@ function ConversationItem({
     >
       <MessageSquare className="h-4 w-4 shrink-0" />
       <span className="flex-1 truncate text-sm">{title}</span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsEditing(true);
+        }}
+        className={cn(
+          'rounded p-1 opacity-0 transition-opacity',
+          'hover:bg-white/20',
+          'group-hover:opacity-100'
+        )}
+        title="Rename"
+      >
+        <Edit2 className="h-3 w-3" />
+      </button>
       <button
         onClick={onDelete}
         className={cn(

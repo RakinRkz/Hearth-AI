@@ -71,6 +71,16 @@ export async function deleteConversation(id: string): Promise<void> {
   await fetchAPI(`/conversations/${id}`, { method: 'DELETE' });
 }
 
+export async function renameConversation(
+  id: string,
+  title: string
+): Promise<{ success: boolean; title: string; message: string }> {
+  return fetchAPI(`/conversations/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ title }),
+  });
+}
+
 export async function deleteAllConversations(): Promise<{
   success: boolean;
   deleted_count: number;

@@ -8,6 +8,146 @@ interface MessageBubbleProps {
   isStreaming?: boolean;
 }
 
+// Simple markdown renderer
+function renderMarkdown(content: string): React.ReactNode[] {
+  const lines = content.split('\n');
+  const result: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    
+    // Headers
+    if (line.startsWith('### ')) {
+      result.push(
+        <h3 key={i} className="text-base font-semibold mt-4 mb-2 text-foreground">
+          {line.slice(4)}
+        </h3>
+      );
+    } else if (line.startsWith('## ')) {
+      result.push(
+        <h2 key={i} className="text-lg font-bold mt-4 mb-2 text-foreground">
+          {line.slice(3)}
+        </h2>
+      );
+    } else if (line.startsWith('# ')) {
+      result.push(
+        <h1 key={i} className="text-xl font-bold mt-4 mb-2 text-foreground">
+          {line.slice(2)}
+        </h1>
+      );
+    }
+    // Bold and italic
+    else if (line.trim().length === 0) {
+      result.push(<br key={i} />);
+    }
+    // Lists
+    else if (line.match(/^[\*\-\+]\s/)) {
+      result.push(
+        <li key={i} className="ml-4 text-foreground">
+          {line.replace(/^[\*\-\+]\s/, '')}
+        </li>
+      );
+    }
+    // Code blocks
+    else if (line.startsWith('```')) {
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith('```')) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      result.push(
+        <pre
+          key={`code-${i}`}
+          className="bg-secondary/50 rounded p-3 overflow-x-auto text-sm text-foreground mt-2 mb-2"
+        >
+          <code>{codeLines.join('\n')}</code>
+        </pre>
+      );
+    }
+    // Regular text with inline formatting
+    else if (line.trim().length > 0) {
+      const formattedContent = formatInlineMarkdown(line);
+      result.push(
+        <p key={i} className="text-foreground leading-relaxed">
+          {formattedContent}
+        </p>
+      );
+    }
+    
+    i++;
+  }
+
+  return result;
+}
+
+// Handle inline markdown: **bold**, *italic*, `code`, etc.
+function formatInlineMarkdown(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  let currentIndex = 0;
+
+  // Pattern to match **text**, *text*, `text`, [text](url)
+  const regex = /\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|\[(.+?)\]\((.+?)\)/g;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Add text before match
+    if (match.index > currentIndex) {
+      parts.push(text.slice(currentIndex, match.index));
+    }
+
+    // Add matched element
+    if (match[1]) {
+      // **bold**
+      parts.push(
+        <strong key={`bold-${currentIndex}`} className="font-semibold">
+          {match[1]}
+        </strong>
+      );
+    } else if (match[2]) {
+      // *italic*
+      parts.push(
+        <em key={`italic-${currentIndex}`} className="italic">
+          {match[2]}
+        </em>
+      );
+    } else if (match[3]) {
+      // `code`
+      parts.push(
+        <code
+          key={`code-${currentIndex}`}
+          className="bg-secondary/50 px-1.5 py-0.5 rounded text-xs font-mono text-foreground"
+        >
+          {match[3]}
+        </code>
+      );
+    } else if (match[4] && match[5]) {
+      // [link](url)
+      parts.push(
+        <a
+          key={`link-${currentIndex}`}
+          href={match[5]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-400 hover:text-blue-300 underline"
+        >
+          {match[4]}
+        </a>
+      );
+    }
+
+    currentIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (currentIndex < text.length) {
+    parts.push(text.slice(currentIndex));
+  }
+
+  return parts.length > 0 ? parts : [text];
+}
+
 export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
@@ -39,13 +179,11 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
           <SearchInfo metadata={message.searchMetadata} />
         )}
         
-        <div className="prose prose-invert max-w-none">
-          <p className="whitespace-pre-wrap text-foreground leading-relaxed">
-            {message.content}
-            {isStreaming && (
-              <span className="ml-1 inline-block h-4 w-2 animate-pulse bg-foreground" />
-            )}
-          </p>
+        <div className="prose prose-invert max-w-none space-y-2 text-foreground">
+          {renderMarkdown(message.content)}
+          {isStreaming && (
+            <span className="ml-1 inline-block h-4 w-2 animate-pulse bg-foreground" />
+          )}
         </div>
 
         {/* Sources */}

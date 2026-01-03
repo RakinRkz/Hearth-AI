@@ -149,6 +149,33 @@ async def delete_conversation(conversation_id: str):
     return {"success": True, "message": "Conversation deleted"}
 
 
+@router.put("/{conversation_id}")
+async def update_conversation(conversation_id: str, data: dict):
+    """Update conversation properties (e.g., title)."""
+    chat_service = get_chat_service()
+    if not chat_service:
+        raise HTTPException(status_code=503, detail="Chat service not available")
+    
+    conversation = chat_service.load_conversation(conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    # Update title if provided
+    if "title" in data:
+        title = data.get("title", "").strip()
+        if title:
+            conversation.title = title
+    
+    chat_service.save_conversation()
+    
+    return {
+        "success": True,
+        "id": conversation.id,
+        "title": conversation.title,
+        "message": "Conversation updated"
+    }
+
+
 @router.put("/{conversation_id}/system-prompt")
 async def update_system_prompt(conversation_id: str, data: dict):
     """Update the system prompt for a conversation."""
