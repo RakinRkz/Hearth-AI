@@ -4,7 +4,7 @@
   "documents_dir": "documents",
   "model_path": "/home/groot/ai-app/models/qwen2.5-3b-instruct-q4_k_m.gguf",
   "context_length": 4096,
-  "max_tokens": 1024,
+  "max_tokens": 4096,
   "temperature": 0.7,
   "top_p": 0.9,
   "top_k": 40,

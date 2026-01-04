@@ -163,6 +163,12 @@ async def websocket_chat(websocket: WebSocket):
                     # Apply smart capping based on remaining context
                     safe_max_tokens = chat_service.get_safe_max_tokens(max_tokens)
                     
+                    # Inject token limit instruction into system prompt for LLM awareness
+                    token_limit_instruction = chat_service._get_token_limit_instruction(safe_max_tokens)
+                    if messages and messages[0].get("role") == "system":
+                        messages[0]["content"] += token_limit_instruction
+                    
+                    # Efficient streaming: small batches with short delays
                     for token in llm_service.generate_stream(
                         messages=messages,
                         max_tokens=safe_max_tokens,
@@ -173,8 +179,8 @@ async def websocket_chat(websocket: WebSocket):
                             "type": "token",
                             "content": token
                         })
-                        # Small delay to prevent flooding
-                        await asyncio.sleep(0.01)
+                        # Very short delay - just enough to not overwhelm the system
+                        await asyncio.sleep(0.05)  # 5ms = 200 tokens/second max
                     
                     # Add assistant message to conversation
                     from models.message import Source

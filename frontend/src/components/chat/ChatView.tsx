@@ -3,7 +3,7 @@ import { useChat } from '../../contexts/ChatContext';
 import { useConversations } from '../../contexts/ConversationContext';
 import { MessageBubble } from './MessageBubble';
 import { ContextDialog } from '../ContextDialog';
-import { Bot, Settings2, Search, ChevronDown, ChevronRight, ExternalLink, Sparkles } from 'lucide-react';
+import { Bot, Settings2, Search, ChevronDown, ChevronRight, ExternalLink, Sparkles, ArrowDown } from 'lucide-react';
 import type { SearchMetadata } from '../../lib/types';
 
 export function ChatView() {
@@ -12,6 +12,8 @@ export function ChatView() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [contextDialogOpen, setContextDialogOpen] = useState(false);
   const [lastSyncedId, setLastSyncedId] = useState<string | null>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   // Sync messages when active conversation changes
   useEffect(() => {
@@ -24,12 +26,35 @@ export function ChatView() {
     }
   }, [activeConversation, lastSyncedId, setMessages]);
 
-  // Auto-scroll to bottom when new content arrives
+  // Check if user is scrolled to bottom
+  const checkIfAtBottom = () => {
+    if (!scrollRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    const atBottom = scrollHeight - scrollTop - clientHeight < 100; // 100px threshold
+    setIsAtBottom(atBottom);
+    setShowScrollButton(!atBottom && (messages.length > 0 || streamingContent.length > 0));
+  };
+
+  // Auto-scroll only if user is at bottom
   useEffect(() => {
-    if (scrollRef.current) {
+    if (isAtBottom && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, streamingContent]);
+  }, [messages, streamingContent, isAtBottom]);
+
+  // Listen to scroll events
+  useEffect(() => {
+    const scrollContainer = scrollRef.current;
+    if (!scrollContainer) return;
+
+    scrollContainer.addEventListener('scroll', checkIfAtBottom);
+    return () => scrollContainer.removeEventListener('scroll', checkIfAtBottom);
+  }, []);
+
+  // Also check on initial load
+  useEffect(() => {
+    checkIfAtBottom();
+  }, [messages]);
 
   // Always use messages from ChatContext (which are synced with active conversation)
   const displayMessages = messages;
@@ -72,7 +97,7 @@ export function ChatView() {
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
+    <div className="flex flex-1 flex-col overflow-hidden relative">
       {/* Header - Always show when there are messages */}
       <div className="flex items-center justify-between border-b border-border px-4 py-2">
         <h2 className="truncate text-sm font-medium text-foreground">
@@ -154,6 +179,24 @@ export function ChatView() {
           )}
         </div>
       </div>
+
+      {/* Scroll to bottom button */}
+      {showScrollButton && (
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10">
+          <button
+            onClick={() => {
+              if (scrollRef.current) {
+                scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+              }
+            }}
+            className="flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg hover:bg-primary/90 transition-all"
+            title="Scroll to latest message"
+          >
+            <ArrowDown className="h-4 w-4" />
+            <span>New message</span>
+          </button>
+        </div>
+      )}
 
       {/* Context Dialog */}
       <ContextDialog

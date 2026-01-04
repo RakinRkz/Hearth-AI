@@ -229,6 +229,24 @@ Search:"""
             print(f"[DEBUG] Query optimization error: {e}, using original")
             return user_message
     
+    def _get_token_limit_instruction(self, max_tokens: int) -> str:
+        """Generate instruction to limit response length.
+        
+        This helps the LLM understand token constraints and respond appropriately.
+        """
+        if max_tokens < 300:
+            guidance = "Keep your response very brief (1-2 sentences)."
+        elif max_tokens < 500:
+            guidance = "Keep your response concise (2-4 sentences)."
+        elif max_tokens < 1000:
+            guidance = "Keep your response moderately detailed (3-5 paragraphs)."
+        elif max_tokens < 2000:
+            guidance = "Provide a comprehensive response with good detail."
+        else:
+            guidance = "Provide thorough, detailed responses as needed."
+        
+        return f"\nIMPORTANT: Approximate token limit for response: {max_tokens} tokens. {guidance}"
+    
     def _prepare_messages(
         self, 
         user_message: str

@@ -98,7 +98,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         
         switch (data.type) {
           case 'token':
-            setStreamingContent((prev) => prev + (data.content || ''));
+            // Direct update - server already throttles at 300ms intervals
+            setStreamingContent(prev => prev + (data.content || ''));
             break;
           
           case 'search_info':
