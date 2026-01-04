@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { cn } from '../../lib/utils';
 import type { Message, Source, SearchMetadata } from '../../lib/types';
 import { User, Bot, ExternalLink, FileText, ChevronDown, ChevronRight, Search } from 'lucide-react';
@@ -6,175 +7,6 @@ import { User, Bot, ExternalLink, FileText, ChevronDown, ChevronRight, Search } 
 interface MessageBubbleProps {
   message: Message;
   isStreaming?: boolean;
-}
-
-// Simple markdown renderer
-function renderMarkdown(content: string): React.ReactNode[] {
-  const lines = content.split('\n');
-  const result: React.ReactNode[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    
-    // H4 Header
-    if (line.startsWith('#### ')) {
-      const formattedContent = formatInlineMarkdown(line.slice(5));
-      result.push(
-        <h4 key={i} className="text-sm font-semibold mt-3 mb-1 text-violet-300">
-          {formattedContent}
-        </h4>
-      );
-    }
-    // H3 Header
-    else if (line.startsWith('### ')) {
-      const formattedContent = formatInlineMarkdown(line.slice(4));
-      result.push(
-        <h3 key={i} className="text-base font-semibold mt-4 mb-2 text-indigo-300">
-          {formattedContent}
-        </h3>
-      );
-    }
-    // H2 Header
-    else if (line.startsWith('## ')) {
-      const formattedContent = formatInlineMarkdown(line.slice(3));
-      result.push(
-        <h2 key={i} className="text-lg font-bold mt-4 mb-2 text-blue-300">
-          {formattedContent}
-        </h2>
-      );
-    }
-    // H1 Header
-    else if (line.startsWith('# ')) {
-      const formattedContent = formatInlineMarkdown(line.slice(2));
-      result.push(
-        <h1 key={i} className="text-xl font-bold mt-4 mb-2 text-blue-300">
-          {formattedContent}
-        </h1>
-      );
-    }
-    // Empty line
-    else if (line.trim().length === 0) {
-      result.push(<br key={i} />);
-    }
-    // Lists
-    else if (line.match(/^[\*\-\+]\s/)) {
-      const formattedContent = formatInlineMarkdown(line.replace(/^[\*\-\+]\s/, ''));
-      result.push(
-        <li key={i} className="ml-4 text-foreground">
-          {formattedContent}
-        </li>
-      );
-    }
-    // Code blocks
-    else if (line.startsWith('```')) {
-      const codeLines: string[] = [];
-      i++;
-      while (i < lines.length && !lines[i].startsWith('```')) {
-        codeLines.push(lines[i]);
-        i++;
-      }
-      result.push(
-        <pre
-          key={`code-${i}`}
-          className="bg-secondary/50 rounded p-3 overflow-x-auto text-sm text-foreground mt-2 mb-2"
-        >
-          <code>{codeLines.join('\n')}</code>
-        </pre>
-      );
-    }
-    // Regular text with inline formatting
-    else if (line.trim().length > 0) {
-      const formattedContent = formatInlineMarkdown(line);
-      result.push(
-        <p key={i} className="text-foreground leading-relaxed">
-          {formattedContent}
-        </p>
-      );
-    }
-    
-    i++;
-  }
-
-  return result;
-}
-
-// Handle inline markdown: **bold**, *italic*, ***bold italic***, `code`, [text](url)
-function formatInlineMarkdown(text: string): React.ReactNode[] {
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-
-  // Pattern: ***bold italic***, **bold**, *italic*, `code`, [link](url)
-  // Order matters: check *** before ** and *
-  const regex = /(\*\*\*[^\*]+\*\*\*|\*\*[^\*]+\*\*|\*[^\*]+\*|`[^`]+`|\[([^\]]+)\]\(([^)]+)\))/g;
-  let match;
-
-  while ((match = regex.exec(text)) !== null) {
-    // Add text before match
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-
-    const matched = match[0];
-    
-    if (matched.startsWith('***') && matched.endsWith('***')) {
-      // Bold italic
-      parts.push(
-        <span key={`bolditalic-${lastIndex}`} className="font-semibold italic text-yellow-300">
-          {matched.slice(3, -3)}
-        </span>
-      );
-    } else if (matched.startsWith('**') && matched.endsWith('**')) {
-      // **bold**
-      parts.push(
-        <strong key={`bold-${lastIndex}`} className="font-semibold text-yellow-300">
-          {matched.slice(2, -2)}
-        </strong>
-      );
-    } else if (matched.startsWith('*') && matched.endsWith('*')) {
-      // *italic*
-      parts.push(
-        <em key={`italic-${lastIndex}`} className="italic text-cyan-300">
-          {matched.slice(1, -1)}
-        </em>
-      );
-    } else if (matched.startsWith('`') && matched.endsWith('`')) {
-      // `code`
-      parts.push(
-        <code
-          key={`code-${lastIndex}`}
-          className="bg-orange-500/20 px-1.5 py-0.5 rounded text-xs font-mono text-orange-300"
-        >
-          {matched.slice(1, -1)}
-        </code>
-      );
-    } else if (matched.startsWith('[') && matched.includes('](')) {
-      // [link](url)
-      const linkMatch = matched.match(/\[([^\]]+)\]\(([^)]+)\)/);
-      if (linkMatch) {
-        parts.push(
-          <a
-            key={`link-${lastIndex}`}
-            href={linkMatch[2]}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-400 hover:text-blue-300 underline"
-          >
-            {linkMatch[1]}
-          </a>
-        );
-      }
-    }
-
-    lastIndex = regex.lastIndex;
-  }
-
-  // Add remaining text
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
-  return parts.length > 0 ? parts : [text];
 }
 
 export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
@@ -208,8 +40,50 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
           <SearchInfo metadata={message.searchMetadata} />
         )}
         
-        <div className="prose prose-invert max-w-none space-y-2 text-foreground">
-          {renderMarkdown(message.content)}
+        <div className="max-w-none space-y-2 text-foreground">
+          <ReactMarkdown
+            components={{
+              h1: ({ children }) => <h1 className="text-xl font-bold mt-4 mb-2 text-blue-300">{children}</h1>,
+              h2: ({ children }) => <h2 className="text-lg font-bold mt-4 mb-2 text-blue-300">{children}</h2>,
+              h3: ({ children }) => <h3 className="text-base font-semibold mt-4 mb-2 text-indigo-300">{children}</h3>,
+              h4: ({ children }) => <h4 className="text-sm font-semibold mt-3 mb-1 text-violet-300">{children}</h4>,
+              p: ({ children }) => <p className="text-foreground leading-relaxed">{children}</p>,
+              strong: ({ children }) => <strong className="font-semibold text-yellow-300 inline">{children}</strong>,
+              em: ({ children }) => <em className="italic text-cyan-300 inline">{children}</em>,
+              code: ({ inline, children }: any) => {
+                // Only render inline code styling, block code is handled by pre
+                if (inline) {
+                  return (
+                    <code className="bg-orange-500/20 px-1.5 py-0.5 rounded text-xs font-mono text-orange-300 whitespace-nowrap">
+                      {children}
+                    </code>
+                  );
+                }
+                // Return just the code content for block code (pre will handle styling)
+                return <code className="font-mono">{children}</code>;
+              },
+              pre: ({ children }: any) => (
+                <pre className="bg-secondary/50 rounded p-3 overflow-x-auto text-sm text-foreground mt-2 mb-2">
+                  {children}
+                </pre>
+              ),
+              ul: ({ children }) => <ul className="list-disc list-inside ml-2 space-y-1">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal list-inside ml-2 space-y-1">{children}</ol>,
+              li: ({ children }) => <li className="text-foreground">{children}</li>,
+              a: ({ href, children }) => (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 underline"
+                >
+                  {children}
+                </a>
+              ),
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
           {isStreaming && (
             <span className="ml-1 inline-block h-4 w-2 animate-pulse bg-foreground" />
           )}

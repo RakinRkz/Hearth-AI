@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import {
   X,
   Save,
@@ -402,141 +403,66 @@ export function ContextDialog({
   );
 }
 
-// Markdown preview component with simple formatting
+// Markdown preview component using react-markdown
 function MarkdownPreview({ content }: { content: string }) {
-  const lines = content.split('\n');
-  const elements: React.ReactNode[] = [];
-  let i = 0;
-
-  // Helper to render inline markdown
-  const renderInlineMarkdown = (text: string): React.ReactNode[] => {
-    const parts: React.ReactNode[] = [];
-    let lastIndex = 0;
-    
-    // Pattern: **bold**, *italic*, `code`, ***bold italic***
-    const regex = /(\*\*\*[^\*]+\*\*\*|\*\*[^\*]+\*\*|\*[^\*]+\*|`[^`]+`)/g;
-    let match;
-    
-    while ((match = regex.exec(text)) !== null) {
-      // Add text before match
-      if (match.index > lastIndex) {
-        parts.push(text.slice(lastIndex, match.index));
-      }
-      
-      const matched = match[0];
-      if (matched.startsWith('***') && matched.endsWith('***')) {
-        // Bold italic
-        parts.push(
-          <span key={`${i}-${lastIndex}`} className="font-bold italic text-yellow-300">
-            {matched.slice(3, -3)}
-          </span>
-        );
-      } else if (matched.startsWith('**') && matched.endsWith('**')) {
-        // Bold
-        parts.push(
-          <span key={`${i}-${lastIndex}`} className="font-bold text-yellow-300">
-            {matched.slice(2, -2)}
-          </span>
-        );
-      } else if (matched.startsWith('*') && matched.endsWith('*')) {
-        // Italic
-        parts.push(
-          <span key={`${i}-${lastIndex}`} className="italic text-cyan-300">
-            {matched.slice(1, -1)}
-          </span>
-        );
-      } else if (matched.startsWith('`') && matched.endsWith('`')) {
-        // Inline code
-        parts.push(
-          <code key={`${i}-${lastIndex}`} className="bg-zinc-700 px-1.5 py-0.5 rounded text-orange-300 font-mono text-xs">
-            {matched.slice(1, -1)}
-          </code>
-        );
-      }
-      lastIndex = regex.lastIndex;
-    }
-    
-    // Add remaining text
-    if (lastIndex < text.length) {
-      parts.push(text.slice(lastIndex));
-    }
-    
-    return parts.length > 0 ? parts : [text];
-  };
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // H1 Header
-    if (line.startsWith('# ')) {
-      elements.push(
-        <h1 key={i} className="text-lg font-bold text-blue-400 mt-4 mb-2 first:mt-0">
-          {renderInlineMarkdown(line.slice(2))}
-        </h1>
-      );
-    }
-    // H2 Header
-    else if (line.startsWith('## ')) {
-      const headerText = line.slice(3);
-      const role = headerText.toLowerCase();
-      const isUser = role === 'user';
-      const isAssistant = role === 'assistant';
-      const isSummary = role.includes('summary');
-      
-      elements.push(
-        <div
-          key={i}
-          className={`inline-block mt-4 mb-2 first:mt-0 px-2 py-1 rounded text-xs font-semibold ${
-            isUser
-              ? 'bg-blue-500/20 text-blue-300'
-              : isAssistant
-              ? 'bg-green-500/20 text-green-300'
-              : isSummary
-              ? 'bg-purple-500/20 text-purple-300'
-              : 'bg-zinc-700 text-zinc-300'
-          }`}
-        >
-          {headerText}
-        </div>
-      );
-    }
-    // H3 Header
-    else if (line.startsWith('### ')) {
-      elements.push(
-        <h3 key={i} className="text-sm font-bold text-indigo-400 mt-3 mb-2">
-          {renderInlineMarkdown(line.slice(4))}
-        </h3>
-      );
-    }
-    // H4 Header
-    else if (line.startsWith('#### ')) {
-      elements.push(
-        <h4 key={i} className="text-sm font-semibold text-violet-400 mt-2 mb-1">
-          {renderInlineMarkdown(line.slice(5))}
-        </h4>
-      );
-    }
-    // Horizontal rule
-    else if (line.trim() === '---') {
-      elements.push(
-        <hr key={i} className="my-4 border-zinc-700" />
-      );
-    }
-    // Empty line
-    else if (line.trim() === '') {
-      elements.push(<div key={i} className="h-2" />);
-    }
-    // Regular text
-    else {
-      elements.push(
-        <p key={i} className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">
-          {renderInlineMarkdown(line)}
-        </p>
-      );
-    }
-
-    i++;
-  }
-
-  return <div className="space-y-0">{elements}</div>;
+  return (
+    <ReactMarkdown
+      components={{
+        h1: ({ children }) => <h1 className="text-lg font-bold text-blue-400 mt-4 mb-2 first:mt-0">{children}</h1>,
+        h2: ({ children }) => {
+          const text = String(children).toLowerCase();
+          const isUser = text === 'user';
+          const isAssistant = text === 'assistant';
+          const isSummary = text.includes('summary');
+          
+          return (
+            <div
+              className={`inline-block mt-4 mb-2 first:mt-0 px-2 py-1 rounded text-xs font-semibold ${
+                isUser
+                  ? 'bg-blue-500/20 text-blue-300'
+                  : isAssistant
+                  ? 'bg-green-500/20 text-green-300'
+                  : isSummary
+                  ? 'bg-purple-500/20 text-purple-300'
+                  : 'bg-zinc-700 text-zinc-300'
+              }`}
+            >
+              {children}
+            </div>
+          );
+        },
+        h3: ({ children }) => <h3 className="text-sm font-bold text-indigo-400 mt-3 mb-2">{children}</h3>,
+        h4: ({ children }) => <h4 className="text-sm font-semibold text-violet-400 mt-2 mb-1">{children}</h4>,
+        p: ({ children }) => <p className="text-zinc-300 text-sm leading-relaxed">{children}</p>,
+        strong: ({ children }) => <strong className="font-bold text-yellow-300">{children}</strong>,
+        em: ({ children }) => <em className="italic text-cyan-300">{children}</em>,
+        code: ({ inline, children }: any) => {
+          if (inline) {
+            return (
+              <code className="bg-zinc-700 px-1.5 py-0.5 rounded text-orange-300 font-mono text-xs whitespace-nowrap">
+                {children}
+              </code>
+            );
+          }
+          return <code className="font-mono">{children}</code>;
+        },
+        pre: ({ children }: any) => (
+          <pre className="bg-zinc-700 rounded p-3 overflow-x-auto text-sm text-zinc-200 mt-2 mb-2">
+            {children}
+          </pre>
+        ),
+        hr: () => <hr className="my-4 border-zinc-700" />,
+        ul: ({ children }) => <ul className="list-disc list-inside ml-2 space-y-1">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal list-inside ml-2 space-y-1">{children}</ol>,
+        li: ({ children }) => <li className="text-zinc-300 text-sm">{children}</li>,
+        a: ({ href, children }) => (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">
+            {children}
+          </a>
+        ),
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
 }
