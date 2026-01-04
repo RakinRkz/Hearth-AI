@@ -2,20 +2,67 @@ import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../../lib/utils';
 import type { Message, Source, SearchMetadata } from '../../lib/types';
-import { User, Bot, ExternalLink, FileText, ChevronDown, ChevronRight, Search } from 'lucide-react';
+import { User, Bot, ExternalLink, FileText, ChevronDown, ChevronRight, Search, Copy, Check } from 'lucide-react';
 
 interface MessageBubbleProps {
   message: Message;
   isStreaming?: boolean;
 }
 
+// Code block component with copy functionality
+function CodeBlock({ children }: { children: React.ReactNode }) {
+  const [copied, setCopied] = useState(false);
+  const code = String(children).replace(/\n$/, '');
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  return (
+    <div className="relative group my-2">
+      <pre className="bg-secondary/50 rounded p-3 overflow-x-auto text-sm text-foreground">
+        {children}
+      </pre>
+      <button
+        onClick={handleCopy}
+        className="absolute right-2 top-2 rounded-lg bg-secondary/80 p-2 text-zinc-400 transition-colors hover:bg-secondary hover:text-foreground opacity-0 group-hover:opacity-100"
+        title="Copy code"
+      >
+        {copied ? (
+          <Check className="h-4 w-4 text-green-400" />
+        ) : (
+          <Copy className="h-4 w-4" />
+        )}
+      </button>
+    </div>
+  );
+}
+
+
 export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
   const isUser = message.role === 'user';
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   return (
     <div
       className={cn(
-        'flex gap-3 px-4 py-6',
+        'flex gap-3 px-4 py-6 group relative',
         isUser ? 'bg-transparent' : 'bg-secondary/30'
       )}
     >
@@ -62,11 +109,7 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
                 // Return just the code content for block code (pre will handle styling)
                 return <code className="font-mono">{children}</code>;
               },
-              pre: ({ children }: any) => (
-                <pre className="bg-secondary/50 rounded p-3 overflow-x-auto text-sm text-foreground mt-2 mb-2">
-                  {children}
-                </pre>
-              ),
+              pre: ({ children }: any) => <CodeBlock>{children}</CodeBlock>,
               ul: ({ children }) => <ul className="list-disc list-inside ml-2 space-y-1">{children}</ul>,
               ol: ({ children }) => <ol className="list-decimal list-inside ml-2 space-y-1">{children}</ol>,
               li: ({ children }) => <li className="text-foreground">{children}</li>,
@@ -94,6 +137,21 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
           <SourcesList sources={message.sources} />
         )}
       </div>
+
+      {/* Copy Button - visible on hover for assistant messages */}
+      {!isUser && (
+        <button
+          onClick={handleCopyMessage}
+          className="absolute right-4 top-4 rounded-lg p-2 text-zinc-400 transition-colors hover:bg-secondary hover:text-foreground opacity-0 group-hover:opacity-100"
+          title="Copy message"
+        >
+          {copied ? (
+            <Check className="h-4 w-4 text-green-400" />
+          ) : (
+            <Copy className="h-4 w-4" />
+          )}
+        </button>
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
   Edit3,
   Eye,
   Check,
+  Copy,
 } from 'lucide-react';
 import * as api from '../lib/api';
 
@@ -403,6 +404,41 @@ export function ContextDialog({
   );
 }
 
+// Code block component with copy functionality for ContextDialog
+function CodeBlockContextDialog({ children }: { children: React.ReactNode }) {
+  const [copied, setCopied] = useState(false);
+  const code = String(children).replace(/\n$/, '');
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  return (
+    <div className="relative group my-2">
+      <pre className="bg-zinc-700 rounded p-3 overflow-x-auto text-sm text-zinc-200">
+        {children}
+      </pre>
+      <button
+        onClick={handleCopy}
+        className="absolute right-2 top-2 rounded-lg bg-zinc-600/80 p-2 text-zinc-300 transition-colors hover:bg-zinc-600 hover:text-white opacity-0 group-hover:opacity-100"
+        title="Copy code"
+      >
+        {copied ? (
+          <Check className="h-4 w-4 text-green-400" />
+        ) : (
+          <Copy className="h-4 w-4" />
+        )}
+      </button>
+    </div>
+  );
+}
+
 // Markdown preview component using react-markdown
 function MarkdownPreview({ content }: { content: string }) {
   return (
@@ -446,11 +482,7 @@ function MarkdownPreview({ content }: { content: string }) {
           }
           return <code className="font-mono">{children}</code>;
         },
-        pre: ({ children }: any) => (
-          <pre className="bg-zinc-700 rounded p-3 overflow-x-auto text-sm text-zinc-200 mt-2 mb-2">
-            {children}
-          </pre>
-        ),
+        pre: ({ children }: any) => <CodeBlockContextDialog>{children}</CodeBlockContextDialog>,
         hr: () => <hr className="my-4 border-zinc-700" />,
         ul: ({ children }) => <ul className="list-disc list-inside ml-2 space-y-1">{children}</ul>,
         ol: ({ children }) => <ol className="list-decimal list-inside ml-2 space-y-1">{children}</ol>,
