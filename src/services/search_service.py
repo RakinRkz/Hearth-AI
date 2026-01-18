@@ -57,39 +57,54 @@ class SearchService:
             import urllib.error
             from html.parser import HTMLParser
             
-            # Simple HTML text extractor
+            # Improved HTML text extractor that better handles content
             class TextExtractor(HTMLParser):
                 def __init__(self):
                     super().__init__()
                     self.text_parts = []
-                    self.skip_tags = {'script', 'style', 'nav', 'header', 'footer', 'aside', 'noscript', 'iframe'}
+                    self.in_script_style = False
+                    self.skip_tags = {'script', 'style', 'meta', 'noscript', 'iframe', 'svg'}
+                    self.preserve_structure_tags = {'p', 'div', 'section', 'article', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'tr', 'td', 'th', 'blockquote'}
                     self.current_tag = None
-                    self.skip_depth = 0
                 
                 def handle_starttag(self, tag, attrs):
                     self.current_tag = tag.lower()
                     if self.current_tag in self.skip_tags:
-                        self.skip_depth += 1
+                        self.in_script_style = True
+                    # Add spacing for structure
+                    elif self.current_tag in self.preserve_structure_tags and self.text_parts and self.text_parts[-1] and not self.text_parts[-1].endswith(' '):
+                        self.text_parts.append(' ')
                 
                 def handle_endtag(self, tag):
-                    if tag.lower() in self.skip_tags and self.skip_depth > 0:
-                        self.skip_depth -= 1
-                    self.current_tag = None
+                    tag = tag.lower()
+                    if tag in self.skip_tags:
+                        self.in_script_style = False
+                    # Add spacing for structure
+                    elif tag in self.preserve_structure_tags and self.text_parts and self.text_parts[-1] and not self.text_parts[-1].endswith(' '):
+                        self.text_parts.append(' ')
                 
                 def handle_data(self, data):
-                    if self.skip_depth == 0:
+                    if not self.in_script_style:
+                        # Preserve numbers and special characters
                         text = data.strip()
-                        if text and len(text) > 2:
+                        # Include even short text if it contains numbers or special chars (dates, etc)
+                        if text and (len(text) > 2 or any(c.isdigit() for c in text)):
                             self.text_parts.append(text)
                 
                 def get_text(self) -> str:
-                    return ' '.join(self.text_parts)
+                    # Join with space and clean up multiple spaces
+                    text = ' '.join(self.text_parts)
+                    # Normalize whitespace while preserving some structure
+                    import re
+                    text = re.sub(r'\s+', ' ', text)
+                    return text.strip()
             
             # Create request with headers to avoid blocking
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                 'Accept-Language': 'en-US,en;q=0.5',
+                'Connection': 'close',
             }
             
             req = urllib.request.Request(url, headers=headers)
@@ -97,59 +112,85 @@ class SearchService:
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 # Check content type
                 content_type = response.headers.get('Content-Type', '')
-                if 'text/html' not in content_type.lower():
+                if 'text/html' not in content_type.lower() and 'application/xhtml' not in content_type.lower():
+                    print(f"[DEBUG] Skipping {url} - not HTML (type: {content_type})")
                     return ""
                 
                 # Read and decode content
                 raw_content = response.read()
                 
+                if not raw_content:
+                    print(f"[DEBUG] No content received from {url}")
+                    return ""
+                
                 # Try to detect encoding
                 encoding = 'utf-8'
                 if 'charset=' in content_type:
-                    encoding = content_type.split('charset=')[-1].split(';')[0].strip()
+                    charset = content_type.split('charset=')[-1].split(';')[0].strip()
+                    charset = charset.strip('\'"')  # Remove quotes if present
+                    if charset and charset.lower() != 'utf-8':
+                        encoding = charset
                 
                 try:
                     html_content = raw_content.decode(encoding)
-                except (UnicodeDecodeError, LookupError):
+                except (UnicodeDecodeError, LookupError) as e:
+                    print(f"[DEBUG] Encoding {encoding} failed for {url}, trying utf-8 with errors='ignore'")
                     html_content = raw_content.decode('utf-8', errors='ignore')
                 
                 # Extract text
                 extractor = TextExtractor()
-                extractor.feed(html_content)
+                try:
+                    extractor.feed(html_content)
+                except Exception as e:
+                    print(f"[DEBUG] HTML parsing failed for {url}: {e}")
+                    return ""
+                
                 text = extractor.get_text()
                 
-                # Clean up the text
-                text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
-                text = text.strip()
+                if not text:
+                    print(f"[DEBUG] No text extracted from {url}")
+                    return ""
                 
-                return text[:5000]  # Limit to 5000 chars per page
+                # Limit to 8000 chars per page to preserve more content
+                return text[:8000]
                 
         except Exception as e:
             print(f"[DEBUG] Failed to fetch {url}: {e}")
             return ""
     
-    def _fetch_contents_parallel(self, results: List['SearchResult'], max_workers: int = 3) -> List['SearchResult']:
-        """Fetch content for multiple URLs in parallel."""
+    def _fetch_contents_parallel(self, results: List['SearchResult'], max_workers: int = 5) -> List['SearchResult']:
+        """Fetch content for multiple URLs in parallel with robust error handling."""
         if not results:
             return results
         
+        # Increase timeout and workers for better throughput
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all fetch tasks
-            future_to_result = {
-                executor.submit(self._fetch_page_content, result.url): result 
-                for result in results
-            }
+            # Submit all fetch tasks with individual timeouts
+            future_to_result = {}
+            for result in results:
+                try:
+                    future = executor.submit(self._fetch_page_content, result.url, timeout=15)
+                    future_to_result[future] = result
+                except Exception as e:
+                    print(f"[DEBUG] Failed to submit fetch task for {result.url}: {e}")
+                    result.content = ""
             
-            # Collect results as they complete
-            for future in as_completed(future_to_result, timeout=15):
+            # Collect results as they complete, with overall timeout
+            completed = 0
+            for future in as_completed(future_to_result, timeout=30):
                 result = future_to_result[future]
                 try:
                     content = future.result()
-                    result.content = content
+                    if content:
+                        result.content = content
+                        completed += 1
+                    else:
+                        result.content = ""
                 except Exception as e:
-                    print(f"[DEBUG] Content fetch failed for {result.url}: {e}")
+                    print(f"[DEBUG] Content fetch exception for {result.url}: {type(e).__name__}: {e}")
                     result.content = ""
         
+        print(f"[DEBUG] Successfully fetched content from {completed}/{len(results)} pages")
         return results
     
     def search(
@@ -221,19 +262,29 @@ class SearchService:
         total_chars = 0
         
         for i, result in enumerate(results, 1):
-            # Use fetched content if available, otherwise use snippet
+            # Prioritize fetched content, fall back to snippet
             if result.content:
-                # Use up to 800 chars of actual content per result
-                content_preview = result.content[:800]
-                if len(result.content) > 800:
+                # Use fetched content (up to 1200 chars per result for better context)
+                content_preview = result.content[:1200]
+                if len(result.content) > 1200:
                     content_preview += "..."
+                source_type = "fetched"
             else:
-                content_preview = result.snippet[:300] if len(result.snippet) > 300 else result.snippet
+                # Fall back to snippet if no content was fetched
+                content_preview = result.snippet[:400] if len(result.snippet) > 400 else result.snippet
+                source_type = "snippet"
             
-            entry = f"[{i}] {result.title}\nURL: {result.url}\n{content_preview}"
+            # Format with title, URL, and content
+            entry = f"[{i}] {result.title}\nURL: {result.url}\nContent ({source_type}):\n{content_preview}"
             
             # Check if adding this would exceed limit
             if total_chars + len(entry) > max_context_chars:
+                # Try to fit a partial entry if we have some space left
+                if total_chars + 200 < max_context_chars:
+                    # At least include title and URL
+                    partial_entry = f"[{i}] {result.title}\nURL: {result.url}"
+                    context_parts.append(partial_entry)
+                    total_chars += len(partial_entry) + 2
                 break
                 
             context_parts.append(entry)
@@ -245,5 +296,5 @@ class SearchService:
             })
         
         context = "\n\n".join(context_parts)
-        print(f"[DEBUG] Context: {len(context)} chars, {len(sources)} sources")
+        print(f"[DEBUG] Context: {len(context)} chars, {len(sources)} sources (fetched={sum(1 for r in results if r.content)})")
         return context, sources

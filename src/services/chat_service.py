@@ -28,20 +28,38 @@ class ChatMode(Enum):
 class ChatService:
     """Service for managing chat conversations."""
     
-    RAG_SYSTEM_TEMPLATE = """You are a helpful AI assistant. Answer the user's question based on the provided context. 
-If the context doesn't contain relevant information, say so and provide a general answer if possible.
-Always cite your sources using [1], [2], etc. when using information from the context.
+    RAG_SYSTEM_TEMPLATE = """You are a helpful AI assistant with access to relevant document content.
 
-Context:
+Your task is to answer the user's question based on the document content provided below. The content comes from documents that have been analyzed and matched to the query.
+
+IMPORTANT INSTRUCTIONS:
+1. Answer the question directly using the provided document content
+2. Always cite your sources using [1], [2], etc. when referring to document content
+3. If the context directly answers the question, provide the answer confidently
+4. If the context doesn't contain relevant information, clearly state that and provide what general help you can
+5. Be specific and include details from the documents
+
+Document Content:
 {context}
-"""
+
+Now answer the user's question using the information above:"""
     
-    SEARCH_SYSTEM_TEMPLATE = """You are a helpful AI assistant with web search results.
-Answer based on the search results. Cite sources using [1], [2], etc.
+    SEARCH_SYSTEM_TEMPLATE = """You are a helpful AI assistant with access to current web search results.
+
+Your task is to answer the user's question using the search results provided below. The search results include the actual content from web pages, not just snippets.
+
+IMPORTANT INSTRUCTIONS:
+1. Use the fetched content to directly answer factual questions (dates, statistics, current information, etc.)
+2. When you find relevant information in the search results, cite it using [1], [2], etc.
+3. If the search results contain the answer to the question, provide it directly and confidently
+4. Include specific details (dates, numbers, facts) found in the search results
+5. If information conflicts across sources, mention both and cite both sources
+6. Only say you don't have information if it's truly not in the search results provided
 
 Search Results:
 {context}
-"""
+
+Now answer the user's question using the information above:"""
     
     SEARCH_QUERY_OPTIMIZATION_PROMPT = """Extract optimal web search keywords from the user's question.
 Return ONLY the search keywords, nothing else. Be concise (3-7 words).
