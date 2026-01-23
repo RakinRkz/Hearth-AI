@@ -13,7 +13,7 @@ A local, cross-platform AI chat application with RAG and web search capabilities
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.11 or 3.10
 - Node.js 18+ (for frontend development)
 - 4GB+ RAM (8GB+ recommended for larger models)
 
