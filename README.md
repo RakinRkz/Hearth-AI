@@ -1,117 +1,40 @@
-# Offline AI - Your Private Local AI Chat App
+# Offline-AI 🧠🔌
 
-A local, cross-platform AI chat application with RAG and web search capabilities.
+A **private, offline AI assistant** — chat with local LLMs, ask questions over your own documents (RAG),
+and search the web with AI-summarized results. No cloud, no API keys, your data stays on your machine.
+
+![Python](https://img.shields.io/badge/Python-3.10+-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
+
+<!-- 👇 Add a screenshot or short GIF of a chat + a document Q&A. This matters most. -->
+![demo](docs/demo.gif)
+
+## Why
+I wanted a fully local LLM assistant — useful without internet, private by default, and able to reason
+over my own files. Built it end-to-end in Python on top of `llama.cpp`.
+
+### For non-technical users / Install and use experience
+There are many AI tools on the internet that are arguably better and feature rich. But all of them require 
+significant setup, knowledge and trial and error - hassle / impossible for a regular user.
+The aim of this app: just install it like any other regular software and start using.
 
 ## Features
+- 💬 **Local LLM chat** — runs GGUF models fully offline via `llama-cpp-python`
+- 📄 **Document RAG** — ask questions across your PDF / DOCX / TXT / MD files
+- 🌐 **AI web search** — DuckDuckGo results, summarized by the local model (optional, when online)
+- ⚡ **GPU acceleration** — CUDA (NVIDIA) and Metal (Apple) offload
+- 🧩 **Guided setup** — a wizard downloads a starter model so you're chatting in minutes
+- 🖥️ **Cross-platform** — Windows, Linux, macOS
 
-- 💬 **Chat** - Converse with local LLMs (no internet required)
-- 📄 **RAG** - Upload documents (PDF, TXT, MD, DOCX) and ask questions
-- 🌐 **Web Search** - Search the web via DuckDuckGo and get AI-summarized results
-- 🖥️ **Cross-platform** - Works on Windows, Linux, and macOS
-- 🚀 **Easy Setup** - Built-in model downloader for beginners
+## Tech
+`Python` · `llama-cpp-python` (llama.cpp) · GGUF models · RAG (embeddings + retrieval) ·
+document parsing (PDF/DOCX/TXT/MD) · DuckDuckGo search
 
-## Requirements
-
-- Python 3.11+
-- 4GB+ RAM (8GB+ recommended for larger models)
-
-## Quick Start
-
-### 1. Create Virtual Environment
-
+## Quickstart
 ```bash
-cd ai-app
-python -m venv venv
-
-# Linux/macOS
-source venv/bin/activate
-
-# Windows
-venv\Scripts\activate
-```
-
-### 2. Install Dependencies
-
-```bash
+git clone https://github.com/RakinRkz/Offline-AI
+cd Offline-AI
 pip install -r requirements.txt
-```
-
-### 3. Run the App
-
-```bash
-python src/main.py
-```
-
-### 4. First Run Setup
-
-On first launch, a **Setup Wizard** will guide you:
-
-1. Click **"Download & Install"** to download the recommended model (~2.4GB)
-2. Wait for the download to complete
-3. Start chatting!
-
-**Or skip the wizard** and manually load your own GGUF model from Settings.
-
-## Available Models
-
-The Setup Wizard offers these recommended models:
-
-| Model | Size | Best For |
-|-------|------|----------|
-| **Phi-3.5 Mini** (default) | ~2.4GB | General chat, coding, reasoning |
-| Llama 3.2 3B | ~2.0GB | Everyday tasks, fast responses |
-| Qwen2.5 3B | ~2.0GB | Multilingual, coding |
-| TinyLlama 1.1B | ~669MB | Low-end hardware, quick tests |
-
-You can also download models from [HuggingFace](https://huggingface.co/models?search=gguf) and load them manually.
-
-## GPU Acceleration
-
-### NVIDIA (CUDA)
-
-```bash
-CMAKE_ARGS="-DLLAMA_CUDA=on" pip install llama-cpp-python --force-reinstall --no-cache-dir
-```
-
-### Apple Silicon (Metal)
-
-```bash
-CMAKE_ARGS="-DLLAMA_METAL=on" pip install llama-cpp-python --force-reinstall --no-cache-dir
-```
-
-## Usage
-
-### Chat Mode
-Simply type your message and press Enter or click Send.
-
-### RAG Mode
-1. Select "📄 RAG (Documents)" mode in the sidebar
-2. Click "+ Upload" to add documents
-3. Ask questions about your documents
-
-### Web Search Mode
-1. Select "🌐 Web Search" mode in the sidebar
-2. Ask any question - the AI will search the web and summarize results
-
-## Project Structure
-
-```
-ai-app/
-├── src/
-│   ├── main.py              # Entry point
-│   ├── app.py               # Main application
-│   ├── ui/                  # UI components
-│   ├── services/            # Business logic
-│   ├── models/              # Data models
-│   └── utils/               # Utilities
-├── models/                  # GGUF model files
-├── data/
-│   ├── conversations/       # Saved chats
-│   └── vectorstore/         # Document embeddings
-├── documents/               # Uploaded documents
-└── requirements.txt
-```
-
-## License
-
-MIT
+python setup.py        # guided model download (adjust to your actual entry point)
+python app.py          # launch the assistant
