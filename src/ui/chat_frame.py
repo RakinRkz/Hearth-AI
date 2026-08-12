@@ -116,7 +116,7 @@ class ChatFrame(ctk.CTkScrollableFrame):
         
         title = ctk.CTkLabel(
             welcome_frame,
-            text="AI Chat",
+            text="Hearth AI",
             font=ctk.CTkFont(size=28, weight="bold"),
         )
         title.pack(pady=(0, 10))

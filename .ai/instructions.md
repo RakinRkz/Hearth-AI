@@ -1,4 +1,4 @@
-# AI Chat App - Development Instructions
+# Hearth AI - Development Instructions
 
 ## Project Overview
 A local cross-platform desktop AI chat application with RAG and web search capabilities.
@@ -339,8 +339,8 @@ build.bat
 
 ### Output
 ```
-dist/AIChat/
-├── AIChat (or AIChat.exe on Windows)
+dist/HearthAI/
+├── HearthAI (or HearthAI.exe on Windows)
 ├── models/          # User puts .gguf files here
 ├── data/            # App data (created on first run)
 ├── documents/       # For uploaded docs
@@ -351,12 +351,12 @@ dist/AIChat/
 
 **Linux:**
 ```bash
-tar -czvf AIChat-1.0.0-linux.tar.gz -C dist AIChat
+tar -czvf HearthAI-1.0.0-linux.tar.gz -C dist HearthAI
 ```
 
 **Windows:**
 ```
-Zip the dist/AIChat folder → AIChat-1.0.0-windows.zip
+Zip the dist/HearthAI folder → HearthAI-1.0.0-windows.zip
 ```
 
 **macOS:**

@@ -1,8 +1,8 @@
 @echo off
-REM Build script for AI Chat App (Windows)
+REM Build script for Hearth AI (Windows)
 REM Usage: build.bat
 
-set APP_NAME=AIChat
+set APP_NAME=HearthAI
 set VERSION=1.0.0
 
 echo Building %APP_NAME% v%VERSION%
@@ -33,13 +33,13 @@ mkdir "dist\%APP_NAME%\data\vectorstore" 2>nul
 mkdir "dist\%APP_NAME%\documents" 2>nul
 
 REM Create README
-echo AI Chat - Local AI Chat Application > "dist\%APP_NAME%\README.txt"
+echo Hearth AI - Local AI Chat Application > "dist\%APP_NAME%\README.txt"
 echo ==================================== >> "dist\%APP_NAME%\README.txt"
 echo. >> "dist\%APP_NAME%\README.txt"
 echo Quick Start: >> "dist\%APP_NAME%\README.txt"
 echo 1. Download a GGUF model from HuggingFace >> "dist\%APP_NAME%\README.txt"
 echo 2. Place the .gguf file in the "models" folder >> "dist\%APP_NAME%\README.txt"
-echo 3. Run AIChat.exe >> "dist\%APP_NAME%\README.txt"
+echo 3. Run HearthAI.exe >> "dist\%APP_NAME%\README.txt"
 echo 4. Go to Settings, Browse, Select your model, Load >> "dist\%APP_NAME%\README.txt"
 
 echo.

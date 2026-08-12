@@ -1,4 +1,4 @@
-# AI Chat App - Project Plan
+# Hearth AI - Project Plan
 
 ## Overview
 

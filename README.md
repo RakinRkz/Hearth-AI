@@ -1,4 +1,4 @@
-# Offline-AI 🧠🔌
+# Hearth AI 🔥
 
 A **private, offline AI assistant** — chat with local LLMs, ask questions over your own documents (RAG),
 and search the web with AI-summarized results. No cloud, no API keys, your data stays on your machine.
@@ -33,8 +33,8 @@ document parsing (PDF/DOCX/TXT/MD) · DuckDuckGo search
 
 ## Quickstart
 ```bash
-git clone https://github.com/RakinRkz/Offline-AI
-cd Offline-AI
+git clone https://github.com/RakinRkz/Hearth-AI
+cd Hearth-AI
 pip install -r requirements.txt
 python setup.py        # guided model download (adjust to your actual entry point)
 python app.py          # launch the assistant

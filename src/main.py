@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AI Chat - Local AI Chat Application
+Hearth AI - Local AI Chat Application
 
 A cross-platform desktop chat application with:
 - Local LLM inference via llama.cpp

@@ -29,7 +29,7 @@ class MainWindow(ctk.CTk):
         super().__init__()
         
         # Window setup
-        self.title("AI Chat")
+        self.title("Hearth AI")
         self.geometry("1200x800")
         self.minsize(800, 600)
         
@@ -233,7 +233,7 @@ class MainWindow(ctk.CTk):
         
         # Show hint in chat
         self.chat_frame.add_message(
-            "Welcome to AI Chat!\n\n"
+            "Welcome to Hearth AI!\n\n"
             "To start chatting, you'll need to load an AI model:\n\n"
             "1. Click the Settings button in the sidebar\n"
             "2. Select a model file (.gguf format)\n"

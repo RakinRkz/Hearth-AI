@@ -22,7 +22,7 @@ class SetupWizard(ctk.CTkToplevel):
         self._is_downloading = False
         
         # Window setup
-        self.title("Welcome to AI Chat")
+        self.title("Welcome to Hearth AI")
         self.geometry("600x500")
         self.resizable(False, False)
         

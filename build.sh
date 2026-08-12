@@ -1,10 +1,10 @@
 #!/bin/bash
-# Build script for AI Chat App
+# Build script for Hearth AI
 # Usage: ./build.sh [windows|linux|macos]
 
 set -e
 
-APP_NAME="AIChat"
+APP_NAME="HearthAI"
 VERSION="1.0.0"
 
 echo "🔨 Building $APP_NAME v$VERSION"
@@ -40,14 +40,14 @@ mkdir -p "$DIST_DIR/documents"
 
 # Copy README
 cat > "$DIST_DIR/README.txt" << 'EOF'
-AI Chat - Local AI Chat Application
-====================================
+Hearth AI - Local AI Chat Application
+=====================================
 
 Quick Start:
 1. Download a GGUF model from HuggingFace
    (e.g., Llama 3.2 3B, Mistral 7B, Phi-3 Mini)
 2. Place the .gguf file in the "models" folder
-3. Run AIChat (or AIChat.exe on Windows)
+3. Run HearthAI (or HearthAI.exe on Windows)
 4. Go to Settings → Browse → Select your model → Load
 
 Features:
@@ -65,7 +65,7 @@ https://huggingface.co/models?search=gguf
 
 For GPU acceleration, download the GPU version from releases.
 
-Need help? Visit: https://github.com/yourusername/ai-chat
+Need help? Visit: https://github.com/RakinRkz/Hearth-AI
 EOF
 
 echo "✅ Build complete!"
