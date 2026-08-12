@@ -1,4 +1,4 @@
-# AI Chat App
+# Offline AI - Your Private Local AI Chat App
 
 A local, cross-platform AI chat application with RAG and web search capabilities.
 
