@@ -71,6 +71,14 @@ python src/main.py
 Then open **http://127.0.0.1:8080**. On first run, Hearth AI offers to download a starter model
 (Phi-3.5 Mini, ~2.4GB) for you.
 
+> **If step 2 fails with a CMake error**, you have no C++ toolchain — the usual case on a stock
+> Windows install, and on any Python version newer than the prebuilt `llama-cpp-python` wheels
+> (3.13, for example). Install from the maintainer's wheel index instead:
+>
+> ```bash
+> pip install -r requirements.txt --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+> ```
+
 ### Development mode
 
 For frontend hot reload, run the backend and Vite dev server in two terminals:

@@ -16,7 +16,9 @@ pypdf>=5.0.0
 python-docx>=1.1.0
 
 # Web Search
-duckduckgo-search>=7.0.0
+# The duckduckgo-search package was renamed to ddgs; search_service.py imports
+# ddgs first and only falls back to the old name, so install the current one.
+ddgs>=9.0.0
 
 # Utilities
 pydantic>=2.10.0
