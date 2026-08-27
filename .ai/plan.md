@@ -266,6 +266,14 @@ Access at: `http://127.0.0.1:8080`
 **Status:** Phases 1-6 complete. The FastAPI + React app is the mainline
 as of the v1.0.1 merge into `main`.
 
-Outstanding: drag-and-drop document upload (Phase 5, optional - upload via
-the sidebar button works today), and a verified PyInstaller build. `build.spec`
-now exists but has not been run end-to-end on any platform.
+Verified on Windows (Python 3.13): frontend builds, test suite passes,
+`python src/main.py` serves the app, and `pyinstaller build.spec` produces a
+~240MB dist/HearthAI/ whose executable starts and serves the bundled frontend
+from sys._MEIPASS.
+
+Outstanding:
+- Drag-and-drop document upload (Phase 5, optional - the sidebar upload
+  button works today).
+- PyInstaller build unverified on Linux and macOS.
+- tests/ holds a single test that makes live DuckDuckGo calls and asserts
+  nothing; it detects import and crash regressions only.
