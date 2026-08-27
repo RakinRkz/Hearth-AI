@@ -263,4 +263,9 @@ Access at: `http://127.0.0.1:8080`
 
 ---
 
-**Status:** Ready for Phase 1 implementation
+**Status:** Phases 1-6 complete. The FastAPI + React app is the mainline
+as of the v1.0.1 merge into `main`.
+
+Outstanding: drag-and-drop document upload (Phase 5, optional - upload via
+the sidebar button works today), and a verified PyInstaller build. `build.spec`
+now exists but has not been run end-to-end on any platform.
