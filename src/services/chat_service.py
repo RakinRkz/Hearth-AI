@@ -28,20 +28,55 @@ class ChatMode(Enum):
 class ChatService:
     """Service for managing chat conversations."""
     
-    RAG_SYSTEM_TEMPLATE = """You are a helpful AI assistant. Answer the user's question based on the provided context. 
-If the context doesn't contain relevant information, say so and provide a general answer if possible.
-Always cite your sources using [1], [2], etc. when using information from the context.
+    RAG_SYSTEM_TEMPLATE = """You are a helpful AI assistant with access to relevant document content.
 
-Context:
+Your task is to answer the user's question based on the document content provided below. The content comes from documents that have been analyzed and matched to the query.
+
+IMPORTANT INSTRUCTIONS:
+1. Answer the question directly using the provided document content
+2. Always cite your sources using [1], [2], etc. when referring to document content
+3. If the context directly answers the question, provide the answer confidently
+4. If the context doesn't contain relevant information, clearly state that and provide what general help you can
+5. Be specific and include details from the documents
+
+Document Content:
 {context}
-"""
+
+Now answer the user's question using the information above:"""
     
-    SEARCH_SYSTEM_TEMPLATE = """You are a helpful AI assistant with web search results.
-Answer based on the search results. Cite sources using [1], [2], etc.
+    SEARCH_SYSTEM_TEMPLATE = """You are a helpful AI assistant with access to current web search results.
+
+Your task is to answer the user's question using the search results provided below. The search results include the actual content from web pages, not just snippets.
+
+IMPORTANT INSTRUCTIONS:
+1. Use the fetched content to directly answer factual questions (dates, statistics, current information, etc.)
+2. When you find relevant information in the search results, cite it using [1], [2], etc.
+3. If the search results contain the answer to the question, provide it directly and confidently
+4. Include specific details (dates, numbers, facts) found in the search results
+5. If information conflicts across sources, mention both and cite both sources
+6. Only say you don't have information if it's truly not in the search results provided
 
 Search Results:
 {context}
-"""
+
+Now answer the user's question using the information above:"""
+    
+    SEARCH_QUERY_OPTIMIZATION_PROMPT = """Extract optimal web search keywords from the user's question.
+Return ONLY the search keywords, nothing else. Be concise (3-7 words).
+Remove filler words. Focus on key terms that will get relevant search results.
+
+Examples:
+User: "What's the latest news about Tesla's stock price and how it's been performing?"
+Search: Tesla stock price news 2026
+
+User: "Can you tell me what happened in the recent earthquake in Japan?"
+Search: Japan earthquake recent news
+
+User: "Who won the Super Bowl this year and what was the final score?"
+Search: Super Bowl 2026 winner final score
+
+User: "{question}"
+Search:"""
     
     def __init__(
         self,
@@ -79,8 +114,58 @@ Search Results:
     def save_conversation(self) -> Optional[str]:
         """Save the current conversation."""
         if self.current_conversation:
-            return self.current_conversation.save(self.conversations_dir)
+            self.current_conversation.save(self.conversations_dir)
+            # Also save context file
+            self.current_conversation.save_context(self.conversations_dir)
+            return self.current_conversation.id
         return None
+    
+    def get_context_usage(self) -> Dict[str, Any]:
+        """Get current context usage metrics."""
+        if not self.current_conversation:
+            return {"usage_percent": 0, "token_count": 0, "max_tokens": 8000, "needs_summary": False}
+        
+        token_count = self.current_conversation.get_context_token_count(self.conversations_dir)
+        max_tokens = 8000  # Typical context window
+        usage_percent = (token_count / max_tokens) * 100
+        needs_summary = usage_percent > 70
+        
+        return {
+            "usage_percent": round(usage_percent, 1),
+            "token_count": token_count,
+            "max_tokens": max_tokens,
+            "needs_summary": needs_summary
+        }
+    
+    def get_safe_max_tokens(self, requested_max_tokens: int) -> int:
+        """Calculate safe max_tokens based on remaining context window.
+        
+        Ensures the response won't exceed the context window by:
+        1. Reserving space for current context usage
+        2. Leaving 10% buffer for prompt overhead
+        3. Clamping to valid range
+        
+        Args:
+            requested_max_tokens: User-requested max tokens
+            
+        Returns:
+            Safe max_tokens value that fits in context window
+        """
+        if not self.current_conversation:
+            return max(128, min(requested_max_tokens, 4096))
+        
+        context_window = 8000  # Model's context window
+        current_tokens = self.current_conversation.get_context_token_count(self.conversations_dir)
+        
+        # Reserve 10% buffer for prompt overhead and safety margin
+        reserved_tokens = int(context_window * 0.10)
+        available_tokens = context_window - current_tokens - reserved_tokens
+        
+        # Don't let response exceed available space
+        safe_max = min(requested_max_tokens, max(available_tokens, 128))
+        
+        # Clamp to reasonable range
+        return max(128, min(safe_max, 4096))
     
     def list_conversations(self) -> List[Dict[str, Any]]:
         """List all saved conversations."""
@@ -113,15 +198,88 @@ Search Results:
             return True
         return False
     
+    def _optimize_search_query(self, user_message: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> str:
+        """Use LLM to extract optimal search keywords from conversation context."""
+        if not self.llm_service or not self.llm_service.is_loaded:
+            print("[DEBUG] LLM not available, using original query")
+            return user_message
+        
+        try:
+            # Build context from conversation history if available
+            context_text = ""
+            if conversation_history and len(conversation_history) > 1:
+                # Include last few exchanges for context (excluding current user message)
+                recent_history = conversation_history[-6:]  # Last 3 exchanges
+                context_parts = []
+                for msg in recent_history:
+                    role = "Human" if msg["role"] == "user" else "Assistant"
+                    context_parts.append(f"{role}: {msg['content'][:200]}...")  # Truncate for brevity
+                context_text = f"Conversation context:\n" + "\n".join(context_parts) + f"\n\nCurrent question: {user_message}"
+            else:
+                context_text = user_message
+            
+            prompt = self.SEARCH_QUERY_OPTIMIZATION_PROMPT.format(question=context_text)
+            
+            # Format as chat messages for the LLM
+            messages = [
+                {"role": "user", "content": prompt}
+            ]
+            
+            # Quick generation with low max_tokens for speed
+            result = self.llm_service.generate(
+                messages=messages,
+                max_tokens=30,
+                temperature=0.1,  # Low temp for consistent output
+                stop=["\n", "User:", "Search:"],
+            )
+            
+            optimized = result.strip()
+            
+            # Validate result - if empty or too long, use original
+            if not optimized or len(optimized) > 100 or len(optimized) < 3:
+                print(f"[DEBUG] Query optimization failed, using original")
+                return user_message
+            
+            print(f"[DEBUG] Optimized query: '{user_message}' -> '{optimized}'")
+            return optimized
+            
+        except Exception as e:
+            print(f"[DEBUG] Query optimization error: {e}, using original")
+            return user_message
+    
+    def _get_token_limit_instruction(self, max_tokens: int) -> str:
+        """Generate instruction to limit response length.
+        
+        This helps the LLM understand token constraints and respond appropriately.
+        """
+        if max_tokens < 300:
+            guidance = "Keep your response very brief (1-2 sentences)."
+        elif max_tokens < 500:
+            guidance = "Keep your response concise (2-4 sentences)."
+        elif max_tokens < 1000:
+            guidance = "Keep your response moderately detailed (3-5 paragraphs)."
+        elif max_tokens < 2000:
+            guidance = "Provide a comprehensive response with good detail."
+        else:
+            guidance = "Provide thorough, detailed responses as needed."
+        
+        return f"\nIMPORTANT: Approximate token limit for response: {max_tokens} tokens. {guidance}"
+    
     def _prepare_messages(
         self, 
         user_message: str
-    ) -> tuple[List[Dict[str, str]], List[Source]]:
-        """Prepare messages for LLM based on current mode."""
+    ) -> tuple[List[Dict[str, str]], List[Source], Optional[Dict[str, Any]]]:
+        """Prepare messages for LLM based on current mode.
+        
+        Returns:
+            Tuple of (messages, sources, search_metadata)
+            search_metadata contains 'query' and 'results' when in search mode
+        """
         if not self.current_conversation:
             self.new_conversation()
         
         sources = []
+        search_metadata = None
         system_prompt = self.current_conversation.system_prompt
         
         # Handle RAG mode
@@ -140,8 +298,19 @@ Search Results:
         
         # Handle Search mode
         elif self.mode == ChatMode.SEARCH and self.search_service:
-            print(f"[DEBUG] Search mode active, searching for: {user_message}")
-            context, search_sources = self.search_service.get_context_for_query(user_message)
+            # Build conversation history for context (before adding current message)
+            history = self.current_conversation.messages
+            conversation_context = []
+            
+            # Convert to LLM format for context
+            for msg in history:
+                conversation_context.append(msg.to_llm_format())
+            
+            # Optimize the search query using LLM with full conversation context
+            optimized_query = self._optimize_search_query(user_message, conversation_context)
+            print(f"[DEBUG] Search mode active, original: '{user_message}' -> optimized: '{optimized_query}'")
+            
+            context, search_sources = self.search_service.get_context_for_query(optimized_query)
             print(f"[DEBUG] Search returned {len(search_sources)} sources, context length: {len(context)}")
             if context:
                 system_prompt = self.SEARCH_SYSTEM_TEMPLATE.format(context=context)
@@ -153,6 +322,14 @@ Search Results:
                     )
                     for s in search_sources
                 ]
+                # Include search metadata for UI display
+                search_metadata = {
+                    "query": optimized_query,
+                    "results": [
+                        {"title": s["title"], "url": s.get("url", ""), "snippet": s["content"][:150]}
+                        for s in search_sources
+                    ]
+                }
             else:
                 print("[DEBUG] No search context returned!")
         
@@ -174,7 +351,7 @@ Search Results:
         print(f"[DEBUG] Prepared {len(messages)} messages for LLM")
         print(f"[DEBUG] System prompt length: {len(system_prompt)}")
         
-        return messages, sources
+        return messages, sources, search_metadata
     
     def send_message(
         self,
@@ -298,6 +475,97 @@ Search Results:
     def set_mode(self, mode: ChatMode) -> None:
         """Set the chat mode."""
         self.mode = mode
+    
+    def summarize_context(self, keep_recent_messages: int = 4) -> Optional[str]:
+        """Summarize old messages in the context file.
+        
+        Keeps the most recent messages intact and summarizes older ones.
+        
+        Args:
+            keep_recent_messages: Number of recent messages to keep intact
+            
+        Returns:
+            Summary text if successful, None otherwise
+        """
+        if not self.current_conversation or not self.llm_service or not self.llm_service.is_loaded:
+            return None
+        
+        try:
+            messages = self.current_conversation.messages
+            if len(messages) == 0:
+                return None  # No messages to summarize
+            
+            # If fewer messages than keep_recent, summarize all and keep none separate
+            if len(messages) <= keep_recent_messages:
+                messages_to_summarize = messages
+                keep_recent_messages = 0
+            else:
+                # Messages to summarize (all except recent ones)
+                messages_to_summarize = messages[:-keep_recent_messages]
+            
+            # Build text to summarize
+            summary_text = f"System Prompt: {self.current_conversation.system_prompt}\n\n"
+            for msg in messages_to_summarize:
+                role = "User" if msg.role == MessageRole.USER else "Assistant"
+                summary_text += f"{role}: {msg.content}\n\n"
+            
+            # Create summarization prompt
+            summarize_prompt = f"""Please create a concise summary of this conversation excerpt. 
+Focus on key information, decisions, and context that would be useful for continuing the conversation.
+Keep the summary under 200 words.
+
+Conversation to summarize:
+{summary_text}
+
+Summary:"""
+            
+            # Generate summary
+            result = self.llm_service.generate(
+                messages=[{"role": "user", "content": summarize_prompt}],
+                max_tokens=256,
+                temperature=0.3,
+            )
+            
+            summary = result.strip()
+            
+            # Update context file with summary
+            context_file = Path(self.conversations_dir) / f"{self.current_conversation.id}.context.md"
+            
+            context_lines = []
+            
+            # System prompt
+            if self.current_conversation.system_prompt:
+                context_lines.append("# System Prompt")
+                context_lines.append(self.current_conversation.system_prompt)
+                context_lines.append("")
+                context_lines.append("---")
+                context_lines.append("")
+            
+            # Add summary
+            context_lines.append("## Summary of Earlier Discussion")
+            context_lines.append(summary)
+            context_lines.append("")
+            context_lines.append("---")
+            context_lines.append("")
+            
+            # Add recent messages (if any kept separate from summary)
+            if keep_recent_messages > 0:
+                for msg in self.current_conversation.messages[-keep_recent_messages:]:
+                    role_header = "## User" if msg.role == MessageRole.USER else "## Assistant"
+                    context_lines.append(role_header)
+                    context_lines.append(msg.content)
+                    context_lines.append("")
+            
+            # Write updated context
+            with open(context_file, "w", encoding="utf-8") as f:
+                f.write("\n".join(context_lines))
+            
+            print(f"[DEBUG] Context summarized successfully. Summary: {len(summary)} chars")
+            return summary
+            
+        except Exception as e:
+            print(f"[DEBUG] Context summarization error: {e}")
+            return None
     
     def get_mode(self) -> ChatMode:
         """Get the current chat mode."""

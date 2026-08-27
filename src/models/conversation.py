@@ -84,6 +84,56 @@ class Conversation:
         
         return str(file_path)
     
+    def save_context(self, directory: str) -> str:
+        """Save conversation context to markdown file.
+        
+        This file contains the formatted context shown to the user,
+        which may include summaries of old messages.
+        """
+        path = Path(directory)
+        path.mkdir(parents=True, exist_ok=True)
+        
+        context_lines = []
+        
+        # Add system prompt
+        if self.system_prompt:
+            context_lines.append("# System Prompt")
+            context_lines.append(self.system_prompt)
+            context_lines.append("")
+            context_lines.append("---")
+            context_lines.append("")
+        
+        # Add messages
+        for msg in self.messages:
+            role_header = "## User" if msg.role == MessageRole.USER else "## Assistant"
+            context_lines.append(role_header)
+            context_lines.append(msg.content)
+            context_lines.append("")
+        
+        context_text = "\n".join(context_lines)
+        
+        context_file = path / f"{self.id}.context.md"
+        with open(context_file, "w", encoding="utf-8") as f:
+            f.write(context_text)
+        
+        return str(context_file)
+    
+    def load_context(self, directory: str) -> Optional[str]:
+        """Load conversation context from markdown file."""
+        context_file = Path(directory) / f"{self.id}.context.md"
+        if context_file.exists():
+            with open(context_file, "r", encoding="utf-8") as f:
+                return f.read()
+        return None
+    
+    def get_context_token_count(self, directory: str) -> int:
+        """Get estimated token count of context file."""
+        context = self.load_context(directory)
+        if context:
+            # Rough estimate: ~4 characters per token
+            return len(context) // 4
+        return 0
+    
     @classmethod
     def load(cls, file_path: str) -> "Conversation":
         """Load conversation from a JSON file."""

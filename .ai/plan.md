@@ -113,46 +113,46 @@ ai-app/
 
 ## Implementation Phases
 
-### Phase 1: FastAPI Backend
-- [ ] Create `src/api/main.py` with FastAPI app, CORS middleware
-- [ ] Create `src/api/dependencies.py` with service singletons
-- [ ] Create `src/api/schemas.py` with Pydantic models
-- [ ] Create WebSocket endpoint `/ws/chat` for streaming
-- [ ] Create REST routes for conversations, documents, settings
-- [ ] Create `src/main.py` entry point (uvicorn + static files)
-- [ ] Update `requirements.txt` (add fastapi, uvicorn, websockets)
+### Phase 1: FastAPI Backend ✅
+- [x] Create `src/api/main.py` with FastAPI app, CORS middleware
+- [x] Create `src/api/dependencies.py` with service singletons
+- [x] Create `src/api/schemas.py` with Pydantic models
+- [x] Create WebSocket endpoint `/ws/chat` for streaming
+- [x] Create REST routes for conversations, documents, settings
+- [x] Create `src/main.py` entry point (uvicorn + static files)
+- [x] Update `requirements.txt` (add fastapi, uvicorn, websockets)
 
-### Phase 2: React Frontend Setup
-- [ ] Scaffold Vite + React + TypeScript in `frontend/`
-- [ ] Add Tailwind CSS with dark mode (`class` strategy)
-- [ ] Initialize shadcn/ui with dark theme
-- [ ] Create base layout with sidebar + main area
+### Phase 2: React Frontend Setup ✅
+- [x] Scaffold Vite + React + TypeScript in `frontend/`
+- [x] Add Tailwind CSS v4 with dark mode
+- [x] Setup utility libraries (lucide-react, clsx, tailwind-merge)
+- [x] Create base layout with sidebar + main area
 
-### Phase 3: React Context & State
-- [ ] Create `ChatContext` (messages, streaming, send/cancel)
-- [ ] Create `ConversationContext` (list, active, CRUD)
-- [ ] Create `SettingsContext` (mode, theme toggle, params)
-- [ ] Implement `useChatSocket` hook for WebSocket
+### Phase 3: React Context & State ✅
+- [x] Create `ChatContext` (messages, streaming, send/cancel)
+- [x] Create `ConversationContext` (list, active, CRUD)
+- [x] Create `SettingsContext` (mode, theme toggle, params)
+- [x] Implement WebSocket connection in ChatContext
 
-### Phase 4: UI Components
-- [ ] Build `ChatView` with ScrollArea + auto-scroll
-- [ ] Build `MessageBubble` (user/assistant variants)
-- [ ] Build `MessageInput` with send button + cancel
-- [ ] Build `Sidebar` with conversation list + document panel
-- [ ] Build `SettingsDialog` with mode/model/theme tabs
+### Phase 4: UI Components ✅
+- [x] Build `ChatView` with auto-scroll
+- [x] Build `MessageBubble` (user/assistant variants)
+- [x] Build `MessageInput` with send button + cancel
+- [x] Build `Sidebar` with conversation list + mode selector
+- [x] Build `SettingsDialog` with model/generation/about tabs
 
-### Phase 5: Integration & Polish
-- [ ] Connect frontend to backend API
-- [ ] Implement document upload with drag-and-drop
-- [ ] Add source citations display for RAG
-- [ ] Add loading states and error handling
-- [ ] Test streaming + cancellation
+### Phase 5: Integration & Polish ✅
+- [x] Connect frontend to backend API
+- [x] Add source citations display for RAG
+- [x] Add loading states and error handling
+- [x] Test streaming + cancellation
+- [ ] Implement document upload with drag-drop (optional)
 
-### Phase 6: Cleanup & Distribution
-- [ ] Remove `src/ui/` folder (CustomTkinter code)
-- [ ] Remove `customtkinter`, `pillow` from requirements
-- [ ] Update README with new run instructions
-- [ ] Add npm build script to bundle frontend
+### Phase 6: Cleanup & Distribution ✅
+- [x] Remove `src/ui/` folder (CustomTkinter code)
+- [x] Remove `src/app.py` (old CustomTkinter app)
+- [x] Update README with new run instructions
+- [x] Frontend builds to `frontend/dist/`
 
 ## API Endpoints
 
