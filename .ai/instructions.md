@@ -16,7 +16,7 @@ A local cross-platform web-based AI chat application with RAG and web search cap
 ## Project Structure
 
 ```
-ai-app/
+Hearth-AI/
 ├── src/
 │   ├── main.py                  # Entry point - starts uvicorn server
 │   ├── api/
@@ -201,13 +201,13 @@ Config is auto-saved to `data/config.json`.
 
 ```bash
 # Terminal 1: Start backend
-cd ai-app
+cd Hearth-AI
 source venv/bin/activate
 pip install -r requirements.txt
 python src/main.py
 
 # Terminal 2: Start frontend (for development)
-cd ai-app/frontend
+cd Hearth-AI/frontend
 npm install
 npm run dev
 ```

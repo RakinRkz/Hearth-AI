@@ -23,7 +23,7 @@ if str(src_dir) not in sys.path:
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="AI Chat Application")
+    parser = argparse.ArgumentParser(description="Hearth AI")
     parser.add_argument(
         "--host",
         type=str,
@@ -60,7 +60,7 @@ def main():
     from api.dependencies import initialize_services, shutdown_services
     
     print("=" * 50)
-    print("AI Chat - Local AI Application")
+    print("Hearth AI - Local AI Application")
     print("=" * 50)
     
     # Initialize services

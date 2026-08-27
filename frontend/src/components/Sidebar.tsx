@@ -139,7 +139,7 @@ export function Sidebar({ onSettingsClick }: SidebarProps) {
       {/* Header */}
       <div className="flex h-12 items-center justify-between border-b border-sidebar-border px-3">
         <span className="text-sm font-semibold text-sidebar-foreground">
-          AI Chat
+          Hearth AI
         </span>
         <button
           onClick={() => setCollapsed(true)}

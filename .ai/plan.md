@@ -52,7 +52,7 @@ A local **cross-platform** AI chat application with **RAG** and **web search** c
 ## Project Structure
 
 ```
-ai-app/
+Hearth-AI/
 ├── src/
 │   ├── main.py                  # API entry point (uvicorn)
 │   ├── api/
@@ -247,7 +247,7 @@ pydantic-settings>=2.0.0
 
 ```bash
 # Backend
-cd ai-app
+cd Hearth-AI
 source venv/bin/activate
 pip install -r requirements.txt
 python src/main.py

@@ -284,7 +284,7 @@ export function ModelDownloadOverlay({ onComplete }: ModelDownloadOverlayProps) 
               <Cpu className="h-8 w-8 text-blue-400" />
             </div>
           </div>
-          <h2 className="mb-2 text-2xl font-semibold text-white">Welcome to AI Chat</h2>
+          <h2 className="mb-2 text-2xl font-semibold text-white">Welcome to Hearth AI</h2>
           <p className="text-zinc-400">
             No AI model found. Please download a model to get started.
           </p>

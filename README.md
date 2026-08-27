@@ -22,7 +22,7 @@ A local, cross-platform AI chat application with RAG and web search capabilities
 ### 1. Create Virtual Environment
 
 ```bash
-cd ai-app
+cd Hearth-AI
 python -m venv venv
 
 # Linux/macOS
@@ -114,7 +114,7 @@ Simply type your message and press Enter or click Send.
 ## Project Structure
 
 ```
-ai-app/
+Hearth-AI/
 ├── src/
 │   ├── main.py              # Entry point (uvicorn)
 │   ├── api/                 # FastAPI routes & schemas

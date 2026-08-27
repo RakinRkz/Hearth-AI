@@ -1,8 +1,8 @@
-# AI Chat App - Architecture Documentation
+# Hearth AI - Architecture Documentation
 
 ## Overview
 
-The AI Chat App is a **local cross-platform web-based** AI chat application with advanced capabilities including Retrieval-Augmented Generation (RAG) and web search integration. The application runs entirely locally using llama.cpp for LLM inference and provides a modern web interface accessed via browser.
+The Hearth AI is a **local cross-platform web-based** AI chat application with advanced capabilities including Retrieval-Augmented Generation (RAG) and web search integration. The application runs entirely locally using llama.cpp for LLM inference and provides a modern web interface accessed via browser.
 
 ### Core Features
 - 💬 **Direct Chat** - Conversation with local LLM models
@@ -320,7 +320,7 @@ graph TD
 
 ### 4. Data Flow Architecture
 
-The AI Chat App implements three distinct data processing pipelines, each optimized for different use cases and information sources.
+The Hearth AI implements three distinct data processing pipelines, each optimized for different use cases and information sources.
 
 ```mermaid
 flowchart TD

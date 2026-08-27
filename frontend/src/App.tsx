@@ -45,7 +45,7 @@ function AppContent() {
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4 text-foreground">
           <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-          <p className="text-zinc-400">Starting AI Chat...</p>
+          <p className="text-zinc-400">Starting Hearth AI...</p>
         </div>
       </div>
     );

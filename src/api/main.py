@@ -15,8 +15,8 @@ from api.routes import chat, conversations, documents, settings
 
 # Create FastAPI app
 app = FastAPI(
-    title="AI Chat API",
-    description="Local AI Chat Application with RAG and Web Search",
+    title="Hearth AI API",
+    description="Hearth AI - local AI assistant with RAG and web search",
     version="1.0.0",
 )
 

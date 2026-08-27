@@ -761,7 +761,7 @@ function AboutSettings() {
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600">
           <Cpu className="h-8 w-8 text-white" />
         </div>
-        <h3 className="text-xl font-bold text-white">AI Chat</h3>
+        <h3 className="text-xl font-bold text-white">Hearth AI</h3>
         <p className="mt-1 text-sm text-zinc-400">Local AI Assistant</p>
         <p className="mt-2 text-xs text-zinc-500">Version 1.0.0</p>
       </div>
