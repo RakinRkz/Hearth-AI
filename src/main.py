@@ -50,8 +50,25 @@ def parse_args():
     return parser.parse_args()
 
 
+def _force_utf8_output():
+    """Make stdout/stderr UTF-8 safe.
+
+    The status lines below use glyphs (checkmarks, a rocket) that do not exist
+    in the legacy Windows code pages. When output is redirected - piped to a
+    file, captured by a launcher, or run under the packaged build - Python
+    falls back to the locale encoding (cp1252 on most Windows installs) and
+    printing them raises UnicodeEncodeError, killing the app during startup.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError):
+            pass
+
+
 def main():
     """Main entry point."""
+    _force_utf8_output()
     args = parse_args()
     
     # Import here to avoid slow startup for --help
