@@ -1,149 +1,135 @@
-# AI Chat App
+# Hearth AI 🔥
 
-A local, cross-platform AI chat application with RAG and web search capabilities. Now featuring a modern React web interface!
+A **private, offline AI assistant** — chat with local LLMs, ask questions over your own documents (RAG),
+and search the web with AI-summarized results. No cloud, no API keys, your data stays on your machine.
+
+![Python](https://img.shields.io/badge/Python-3.10+-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
+
+<!-- 👇 Add a screenshot or short GIF of a chat + a document Q&A here. This matters most. -->
+
+## Why
+
+I wanted a fully local LLM assistant — useful without internet, private by default, and able to reason
+over my own files. Built it end-to-end in Python on top of `llama.cpp`.
+
+### For non-technical users / install and use experience
+
+There are many AI tools on the internet that are arguably better and more feature rich. But all of them
+require significant setup, knowledge and trial and error — a hassle, or impossible, for a regular user.
+The aim of this app: just install it like any other regular software and start using it.
 
 ## Features
 
-- 💬 **Chat** - Converse with local LLMs (no internet required)
-- 📄 **RAG** - Upload documents (PDF, TXT, MD, DOCX) and ask questions
-- 🌐 **Web Search** - Search the web via DuckDuckGo and get AI-summarized results
-- 🖥️ **Cross-platform** - Works on Windows, Linux, and macOS
-- 🌙 **Dark Mode** - Beautiful dark theme by default
-- 🚀 **Web-based** - Access via browser at `http://127.0.0.1:8080`
+- 💬 **Local LLM chat** — runs GGUF models fully offline via `llama-cpp-python`, with streaming responses
+- 📄 **Document RAG** — ask questions across your PDF / DOCX / TXT / MD files, with source citations
+- 🌐 **AI web search** — DuckDuckGo results, summarized by the local model (optional, when online)
+- ⚡ **GPU acceleration** — CUDA (NVIDIA) and Metal (Apple) offload
+- 🧩 **Guided setup** — downloads a starter model on first run so you're chatting in minutes
+- 💾 **Conversation management** — save, rename, and revisit past chats
+- 🌙 **Dark mode** — enabled by default
+- 🖥️ **Cross-platform** — Windows, Linux, macOS
 
-## Requirements
+## Tech
 
-- Python 3.11 or 3.10
-- Node.js 18+ (for frontend development)
-- 4GB+ RAM (8GB+ recommended for larger models)
+| Layer | Technology |
+|---|---|
+| Backend | Python 3.10+ / FastAPI (WebSocket streaming + REST) |
+| Frontend | Vite + React 19 + TypeScript |
+| Styling | Tailwind CSS v4 |
+| LLM | `llama-cpp-python` (llama.cpp), GGUF models |
+| Vector store | ChromaDB |
+| Embeddings | `fastembed` (ONNX) |
+| Web search | DuckDuckGo |
+| Documents | PDF, DOCX, TXT, MD |
 
-## Quick Start
+The UI runs in your browser, but everything — model, embeddings, vector store — stays on your machine.
 
-### 1. Create Virtual Environment
+## Quickstart
+
+Requires **Python 3.10+** and **Node.js 18+**.
 
 ```bash
+git clone https://github.com/RakinRkz/Hearth-AI
 cd Hearth-AI
+
+# 1. Virtual environment
 python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
 
-# Linux/macOS
-source venv/bin/activate
-
-# Windows
-venv\Scripts\activate
-```
-
-### 2. Install Dependencies
-
-```bash
+# 2. Python dependencies
 pip install -r requirements.txt
-```
 
-### 3. Build Frontend
+# 3. Build the frontend
+cd frontend && npm install && npm run build && cd ..
 
-```bash
-cd frontend
-npm install
-npm run build
-cd ..
-```
-
-### 4. Run the App
-
-```bash
+# 4. Launch
 python src/main.py
 ```
 
-Then open **http://127.0.0.1:8080** in your browser.
+Then open **http://127.0.0.1:8080**. On first run, Hearth AI offers to download a starter model
+(Phi-3.5 Mini, ~2.4GB) for you.
 
-### Development Mode
+### Development mode
 
-For frontend development with hot reload:
+For frontend hot reload, run the backend and Vite dev server in two terminals:
 
 ```bash
-# Terminal 1: Start backend
-python src/main.py --port 8080
-
-# Terminal 2: Start frontend dev server
-cd frontend
-npm run dev
+python src/main.py --port 8080     # terminal 1
+cd frontend && npm run dev         # terminal 2
 ```
 
-Then open **http://localhost:5173** (Vite proxies API requests to backend).
+Open **http://localhost:5173** — Vite proxies API requests to the backend.
 
-## Available Models
+## Models
 
-The Setup Wizard offers these recommended models:
-
-| Model | Size | Best For |
-|-------|------|----------|
+| Model | Size | Best for |
+|---|---|---|
 | **Phi-3.5 Mini** (default) | ~2.4GB | General chat, coding, reasoning |
 | Llama 3.2 3B | ~2.0GB | Everyday tasks, fast responses |
 | Qwen2.5 3B | ~2.0GB | Multilingual, coding |
 | TinyLlama 1.1B | ~669MB | Low-end hardware, quick tests |
 
-You can also download models from [HuggingFace](https://huggingface.co/models?search=gguf) and load them manually.
+You can also drop any `.gguf` file from [HuggingFace](https://huggingface.co/models?search=gguf) into
+`models/` and select it in Settings.
 
-## GPU Acceleration
-
-### NVIDIA (CUDA)
+## GPU acceleration
 
 ```bash
+# NVIDIA (CUDA)
 CMAKE_ARGS="-DLLAMA_CUDA=on" pip install llama-cpp-python --force-reinstall --no-cache-dir
-```
 
-### Apple Silicon (Metal)
-
-```bash
+# Apple Silicon (Metal)
 CMAKE_ARGS="-DLLAMA_METAL=on" pip install llama-cpp-python --force-reinstall --no-cache-dir
 ```
 
+Then set GPU layers to `-1` in Settings to offload the whole model.
+
 ## Usage
 
-### Chat Mode
-Simply type your message and press Enter or click Send.
+- **Chat** — type and press Enter.
+- **RAG** — upload documents in the sidebar, then ask questions about them. Answers cite their sources.
+- **Web search** — switch to search mode and ask; Hearth AI searches DuckDuckGo and summarizes the results.
 
-### RAG Mode
-1. Select "📄 RAG (Documents)" mode in the sidebar
-2. Click "+ Upload" to add documents
-3. Ask questions about your documents
-
-### Web Search Mode
-1. Select "🌐 Web Search" mode in the sidebar
-2. Ask any question - the AI will search the web and summarize results
-
-## Project Structure
+## Project structure
 
 ```
 Hearth-AI/
 ├── src/
-│   ├── main.py              # Entry point (uvicorn)
-│   ├── api/                 # FastAPI routes & schemas
-│   ├── services/            # Business logic (LLM, RAG, Search)
-│   ├── models/              # Data models
-│   └── utils/               # Utilities
-├── frontend/
-│   ├── src/                 # React + TypeScript source
-│   ├── dist/                # Production build
-│   └── package.json
-├── models/                  # GGUF model files
-├── data/
-│   ├── conversations/       # Saved chats
-│   └── vectorstore/         # Document embeddings
-├── documents/               # Uploaded documents
-└── requirements.txt
+│   ├── main.py          # Entry point (uvicorn)
+│   ├── api/             # FastAPI routes, schemas, WebSocket
+│   ├── services/        # LLM, RAG, search, chat orchestration
+│   ├── models/          # Message and conversation models
+│   └── utils/           # Config, document loading, model download
+├── frontend/            # React + TypeScript UI
+├── models/              # Your .gguf files
+├── data/                # Conversations, vector store, config
+├── documents/           # Uploaded documents
+└── tests/
 ```
 
-## Tech Stack
-
-| Component | Technology |
-|-----------|------------|
-| Backend | Python 3.11+ / FastAPI |
-| Frontend | Vite + React 19 + TypeScript |
-| Styling | Tailwind CSS v4 |
-| LLM | llama-cpp-python |
-| Vector Store | ChromaDB |
-| Embeddings | fastembed (ONNX) |
-| Web Search | DuckDuckGo (ddgs) |
+Architecture notes and development instructions live in [`.ai/`](.ai/).
 
 ## License
 
