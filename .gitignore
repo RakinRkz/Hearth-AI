@@ -31,6 +31,7 @@ build/
 *~
 
 # Data (keep structure, ignore contents)
+data/config.json
 data/conversations/*
 data/vectorstore/*
 !data/conversations/.gitkeep

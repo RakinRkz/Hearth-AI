@@ -2,9 +2,9 @@
   "models_dir": "models",
   "data_dir": "data",
   "documents_dir": "documents",
-  "model_path": "/home/groot/ai-app/models/qwen2.5-3b-instruct-q4_k_m.gguf",
-  "context_length": 4096,
-  "max_tokens": 4096,
+  "model_path": null,
+  "context_length": 2048,
+  "max_tokens": 1024,
   "temperature": 0.7,
   "top_p": 0.9,
   "top_k": 40,
@@ -19,5 +19,5 @@
   "theme": "dark",
   "window_width": 1200,
   "window_height": 800,
-  "first_run": false
+  "first_run": true
 }
