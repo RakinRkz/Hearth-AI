@@ -4,8 +4,8 @@
 import sys
 from pathlib import Path
 
-# Add src to path
-src_dir = Path(__file__).parent / "src"
+# Add src to path (this file lives in tests/, so src/ is one level up)
+src_dir = Path(__file__).parent.parent / "src"
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
