@@ -63,6 +63,11 @@ async def model_status():
 
 def mount_static_files(app: FastAPI, frontend_dist: str = "frontend/dist"):
     """Mount static files for production build."""
-    dist_path = Path(__file__).parent.parent.parent / frontend_dist
+    if getattr(sys, "frozen", False):
+        # PyInstaller: bundled data lives under _MEIPASS, not alongside the source
+        base_dir = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    else:
+        base_dir = Path(__file__).parent.parent.parent
+    dist_path = base_dir / frontend_dist
     if dist_path.exists():
         app.mount("/", StaticFiles(directory=str(dist_path), html=True), name="static")

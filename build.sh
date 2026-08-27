@@ -20,6 +20,14 @@ fi
 # Install PyInstaller if not present
 pip install pyinstaller --quiet
 
+# Build the frontend - build.spec bundles frontend/dist, so it must exist first
+echo "🎨 Building frontend..."
+if ! command -v npm > /dev/null; then
+    echo "❌ npm not found. Node.js 18+ is required to build the frontend."
+    exit 1
+fi
+(cd frontend && npm install --silent && npm run build)
+
 # Clean previous builds
 rm -rf build/ dist/
 
@@ -44,11 +52,12 @@ Hearth AI - Local AI Chat Application
 =====================================
 
 Quick Start:
-1. Download a GGUF model from HuggingFace
-   (e.g., Llama 3.2 3B, Mistral 7B, Phi-3 Mini)
-2. Place the .gguf file in the "models" folder
-3. Run HearthAI (or HearthAI.exe on Windows)
-4. Go to Settings → Browse → Select your model → Load
+1. Run HearthAI (or HearthAI.exe on Windows)
+2. Open http://127.0.0.1:8080 in your browser
+3. On first run, Hearth AI offers to download a starter model for you
+
+Prefer your own model? Drop a .gguf file into the "models" folder before
+starting, then pick it in Settings.
 
 Features:
 - 💬 Chat with local AI

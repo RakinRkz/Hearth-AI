@@ -18,6 +18,23 @@ if exist venv\Scripts\activate.bat (
 REM Install PyInstaller if not present
 pip install pyinstaller --quiet
 
+REM Build the frontend - build.spec bundles frontend\dist, so it must exist first
+echo Building frontend...
+where npm >nul 2>nul
+if errorlevel 1 (
+    echo npm not found. Node.js 18+ is required to build the frontend.
+    exit /b 1
+)
+pushd frontend
+call npm install --silent
+call npm run build
+if errorlevel 1 (
+    echo Frontend build failed.
+    popd
+    exit /b 1
+)
+popd
+
 REM Clean previous builds
 rmdir /s /q build 2>nul
 rmdir /s /q dist 2>nul
@@ -37,10 +54,12 @@ echo Hearth AI - Local AI Chat Application > "dist\%APP_NAME%\README.txt"
 echo ==================================== >> "dist\%APP_NAME%\README.txt"
 echo. >> "dist\%APP_NAME%\README.txt"
 echo Quick Start: >> "dist\%APP_NAME%\README.txt"
-echo 1. Download a GGUF model from HuggingFace >> "dist\%APP_NAME%\README.txt"
-echo 2. Place the .gguf file in the "models" folder >> "dist\%APP_NAME%\README.txt"
-echo 3. Run HearthAI.exe >> "dist\%APP_NAME%\README.txt"
-echo 4. Go to Settings, Browse, Select your model, Load >> "dist\%APP_NAME%\README.txt"
+echo 1. Run HearthAI.exe >> "dist\%APP_NAME%\README.txt"
+echo 2. Open http://127.0.0.1:8080 in your browser >> "dist\%APP_NAME%\README.txt"
+echo 3. On first run, Hearth AI offers to download a starter model >> "dist\%APP_NAME%\README.txt"
+echo. >> "dist\%APP_NAME%\README.txt"
+echo Prefer your own model? Drop a .gguf file into the "models" folder >> "dist\%APP_NAME%\README.txt"
+echo before starting, then pick it in Settings. >> "dist\%APP_NAME%\README.txt"
 
 echo.
 echo Build complete!
