@@ -20,6 +20,10 @@ python-docx>=1.1.0
 # ddgs first and only falls back to the old name, so install the current one.
 ddgs>=9.0.0
 
+# Desktop launcher (system tray + browser)
+pystray>=0.19.5
+pillow>=10.0.0
+
 # Utilities
 pydantic>=2.10.0
 pydantic-settings>=2.6.0

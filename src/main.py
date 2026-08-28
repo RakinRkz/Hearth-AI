@@ -66,15 +66,14 @@ def _force_utf8_output():
             pass
 
 
-def main():
-    """Main entry point."""
-    _force_utf8_output()
-    args = parse_args()
-    
-    # Import here to avoid slow startup for --help
-    import uvicorn
+def bootstrap(model_path=None):
+    """Prepare directories, start services and mount static files.
+
+    Shared by the console entry point and the tray launcher so the two cannot
+    drift apart. Returns the configured FastAPI app.
+    """
     from api.main import app, mount_static_files
-    from api.dependencies import initialize_services, shutdown_services
+    from api.dependencies import initialize_services
     from utils import paths
 
     print("=" * 50)
@@ -86,27 +85,38 @@ def main():
     # its own install directory, which may be read-only.
     paths.ensure_dirs()
     print(paths.describe())
-    
-    # Initialize services
+
     print("\nInitializing services...")
-    status = initialize_services(model_path=args.model)
-    
+    status = initialize_services(model_path=model_path)
+
     if status["llm"]:
         print("✓ LLM service ready")
     else:
         print("✗ LLM service failed:", status["errors"])
-    
+
     if status["embedding"]:
         print("✓ Embedding service ready")
-    
+
     if status["rag"]:
         print("✓ RAG service ready")
-    
+
     if status["search"]:
         print("✓ Search service ready")
-    
-    # Mount static files if frontend build exists
+
     mount_static_files(app)
+    return app
+
+
+def main():
+    """Main entry point."""
+    _force_utf8_output()
+    args = parse_args()
+
+    # Import here to avoid slow startup for --help
+    import uvicorn
+    from api.dependencies import shutdown_services
+
+    app = bootstrap(model_path=args.model)
     
     print(f"\n🚀 Starting server at http://{args.host}:{args.port}")
     print(f"   API docs: http://{args.host}:{args.port}/docs")
