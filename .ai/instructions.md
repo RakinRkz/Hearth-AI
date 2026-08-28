@@ -271,7 +271,7 @@ The Setup Wizard offers these recommended models:
 | **Phi-3.5 Mini** (recommended) | ~2.4GB | Microsoft's excellent all-rounder for chat and coding |
 | Llama 3.2 3B | ~2.0GB | Meta's efficient small model |
 | Qwen2.5 3B | ~2.0GB | Strong multilingual capabilities |
-| TinyLlama 1.1B | ~669MB | Ultra-lightweight for low-end hardware |
+| Llama 3.2 1B | ~770MB | Smallest model that still follows instructions |
 
 ## Dependencies
 

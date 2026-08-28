@@ -97,7 +97,7 @@ Open **http://localhost:5173** — Vite proxies API requests to the backend.
 | **Phi-3.5 Mini** (default) | ~2.4GB | General chat, coding, reasoning |
 | Llama 3.2 3B | ~2.0GB | Everyday tasks, fast responses |
 | Qwen2.5 3B | ~2.0GB | Multilingual, coding |
-| TinyLlama 1.1B | ~669MB | Low-end hardware, quick tests |
+| Llama 3.2 1B | ~770MB | Low-end hardware |
 
 You can also drop any `.gguf` file from [HuggingFace](https://huggingface.co/models?search=gguf) into
 `models/` and select it in Settings.

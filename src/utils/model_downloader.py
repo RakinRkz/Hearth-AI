@@ -47,12 +47,18 @@ RECOMMENDED_MODELS: List[ModelInfo] = [
         description="Alibaba's Qwen 2.5 - strong multilingual and coding capabilities.",
         recommended=False,
     ),
+    # TinyLlama 1.1B was offered here and had to be withdrawn: it does not
+    # follow a system prompt at all. Asked "Hi" it produced an essay about
+    # itself with invented articles and a fabricated support email address,
+    # and with a terse prompt it decided "Hearth" was a character in a town
+    # called Edenwood. No prompt wording fixed it - the failure is capability,
+    # not phrasing. Llama 3.2 1B is 100MB larger and behaves properly.
     ModelInfo(
-        name="TinyLlama 1.1B Chat",
-        filename="tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
-        url="https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
-        size_mb=669,
-        description="Ultra-lightweight model for low-end hardware. Limited capabilities but very fast.",
+        name="Llama 3.2 1B Instruct",
+        filename="Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+        url="https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+        size_mb=770,
+        description="Smallest model that still holds a conversation properly. For low-end hardware.",
         recommended=False,
     ),
 ]
