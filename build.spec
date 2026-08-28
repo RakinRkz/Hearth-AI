@@ -35,6 +35,10 @@ for pkg in ("llama_cpp", "chromadb", "fastembed", "onnxruntime", "tokenizers"):
 
 # uvicorn resolves its protocol/lifespan implementations by string name.
 hiddenimports += collect_submodules("uvicorn")
+# pystray picks its backend at runtime (_win32 / _appindicator / _darwin), so
+# static analysis never sees the import.
+hiddenimports += collect_submodules("pystray")
+hiddenimports += ["PIL.Image", "PIL._tkinter_finder"]
 hiddenimports += [
     "uvicorn.logging",
     "uvicorn.loops.auto",
@@ -46,9 +50,13 @@ hiddenimports += [
 # The built frontend. Served by mount_static_files() from _MEIPASS at runtime.
 datas += [("frontend/dist", "frontend/dist")]
 
+# Tray icon assets. tools/ carries the generator used as a fallback if the
+# rendered asset is ever missing from a build.
+datas += [("assets", "assets"), ("tools", "tools")]
+
 
 a = Analysis(
-    ["src/main.py"],
+    ["src/tray.py"],
     pathex=["src"],
     binaries=binaries,
     datas=datas,
@@ -57,7 +65,9 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     # Desktop-era UI stack, no longer used by the web app.
-    excludes=["tkinter", "customtkinter", "PIL", "matplotlib"],
+    # PIL is required by pystray for the tray image, so it must NOT be excluded
+    # here even though the desktop-era UI stack is gone.
+    excludes=["tkinter", "customtkinter", "matplotlib"],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -76,8 +86,9 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
+    icon="assets/hearth.ico",
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,

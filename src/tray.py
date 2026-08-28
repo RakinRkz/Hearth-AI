@@ -129,10 +129,69 @@ def open_data_folder() -> None:
         subprocess.Popen(["xdg-open", target])
 
 
+MAX_LOG_BYTES = 2 * 1024 * 1024
+
+
+def redirect_output_to_log():
+    """Send stdout/stderr to a log file when there is no console.
+
+    A windowed PyInstaller build has sys.stdout set to None, so every print in
+    the app - including the service status lines and any traceback - would be
+    discarded. That is unsupportable for a released app: when someone reports
+    "it did not start", this file is the only evidence available.
+
+    An installed build always logs to file, whether or not a console handle
+    happens to be inherited - launching from a shell gives the process a pipe,
+    which would otherwise silently skip redirection and leave no log exactly
+    where one is most needed.
+
+    Returns the log path, or None when running from source with a console.
+    """
+    from utils import paths
+
+    needs_file = paths.is_frozen() or sys.stdout is None or sys.stderr is None
+    if not needs_file:
+        return None
+
+    log_path = paths.user_data_dir() / "hearth.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Keep it from growing without bound across launches
+    try:
+        if log_path.exists() and log_path.stat().st_size > MAX_LOG_BYTES:
+            log_path.unlink()
+    except OSError:
+        pass
+
+    stream = open(log_path, "a", encoding="utf-8", errors="replace", buffering=1)
+    sys.stdout = stream
+    sys.stderr = stream
+    return log_path
+
+
+def open_log_file() -> None:
+    """Open hearth.log in the default text viewer."""
+    from utils import paths
+
+    target = paths.user_data_dir() / "hearth.log"
+    if not target.exists():
+        return
+    if sys.platform == "win32":
+        os.startfile(str(target))
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", str(target)])
+    else:
+        subprocess.Popen(["xdg-open", str(target)])
+
+
 def main() -> int:
+    log_path = redirect_output_to_log()
+
     from main import _force_utf8_output, bootstrap
 
     _force_utf8_output()
+    if log_path:
+        print(f"--- Hearth AI starting, logging to {log_path} ---")
 
     import pystray
 
@@ -152,6 +211,7 @@ def main() -> int:
     icon.menu = pystray.Menu(
         pystray.MenuItem("Open Hearth AI", lambda: webbrowser.open(url), default=True),
         pystray.MenuItem("Open data folder", lambda: open_data_folder()),
+        pystray.MenuItem("Open log file", lambda: open_log_file()),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quit Hearth AI", quit_app),
     )
