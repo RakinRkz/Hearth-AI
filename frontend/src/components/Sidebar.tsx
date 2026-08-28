@@ -18,9 +18,11 @@ import {
   Loader2,
   Edit2,
   Check,
+  Power,
 } from 'lucide-react';
 import type { ChatMode, DocumentInfo } from '../lib/types';
 import * as api from '../lib/api';
+import { QUIT_EVENT } from '../App';
 
 interface SidebarProps {
   onSettingsClick: () => void;
@@ -41,6 +43,33 @@ export function Sidebar({ onSettingsClick }: SidebarProps) {
   } = useConversations();
   const { clearMessages } = useChat();
   const { mode, setMode } = useSettings();
+  const [canQuitApp, setCanQuitApp] = useState(false);
+
+  // Only offer Quit when the process can actually act on it - running from
+  // source without the tray launcher, nothing is listening.
+  useEffect(() => {
+    api
+      .canQuit()
+      .then((r) => setCanQuitApp(r.can_quit))
+      .catch(() => setCanQuitApp(false));
+  }, []);
+
+  const handleQuit = async () => {
+    const message = [
+      'Stop Hearth AI?',
+      'The local server will shut down and this page will disconnect.',
+    ].join(String.fromCharCode(10, 10));
+    if (!window.confirm(message)) {
+      return;
+    }
+    try {
+      await api.quitApp();
+    } catch {
+      // The server may drop the connection as it goes down; that is success
+      // from the user's point of view, so fall through to the stopped screen.
+    }
+    window.dispatchEvent(new Event(QUIT_EVENT));
+  };
 
   // Load documents when in RAG mode
   useEffect(() => {
@@ -288,8 +317,8 @@ export function Sidebar({ onSettingsClick }: SidebarProps) {
         </div>
       </div>
 
-      {/* Settings Button */}
-      <div className="border-t border-sidebar-border p-2">
+      {/* Settings + Quit */}
+      <div className="border-t border-sidebar-border p-2 space-y-1">
         <button
           onClick={onSettingsClick}
           className={cn(
@@ -301,6 +330,20 @@ export function Sidebar({ onSettingsClick }: SidebarProps) {
           <Settings className="h-4 w-4" />
           Settings
         </button>
+        {canQuitApp && (
+          <button
+            onClick={handleQuit}
+            title="Stop Hearth AI and close the server"
+            className={cn(
+              'flex w-full items-center gap-2 rounded-lg px-3 py-2',
+              'hover:bg-red-500/10 hover:text-red-400 transition-colors',
+              'text-sm text-muted-foreground'
+            )}
+          >
+            <Power className="h-4 w-4" />
+            Quit Hearth AI
+          </button>
+        )}
       </div>
     </div>
   );

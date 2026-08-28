@@ -188,6 +188,7 @@ def main() -> int:
     log_path = redirect_output_to_log()
 
     from main import _force_utf8_output, bootstrap
+    from utils import lifecycle
 
     _force_utf8_output()
     if log_path:
@@ -205,8 +206,13 @@ def main() -> int:
     icon = pystray.Icon("hearth-ai", load_icon_image(), f"Hearth AI - {url}")
 
     def quit_app(_icon=None, _item=None):
+        print("Shutdown requested")
         icon.visible = False
         icon.stop()
+
+    # Let the web UI stop the app too. On Windows 11 the tray icon starts
+    # hidden behind the overflow chevron, so it cannot be the only way out.
+    lifecycle.set_shutdown_hook(quit_app)
 
     icon.menu = pystray.Menu(
         pystray.MenuItem("Open Hearth AI", lambda: webbrowser.open(url), default=True),
@@ -231,6 +237,7 @@ def main() -> int:
     finally:
         from api.dependencies import shutdown_services
 
+        lifecycle.set_shutdown_hook(None)
         server.stop()
         shutdown_services()
 

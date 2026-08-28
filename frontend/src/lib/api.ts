@@ -249,6 +249,14 @@ export async function reloadServices(): Promise<{
   return fetchAPI('/settings/reload', { method: 'POST' });
 }
 
+export async function canQuit(): Promise<{ can_quit: boolean }> {
+  return fetchAPI('/settings/app/can-quit');
+}
+
+export async function quitApp(): Promise<{ stopping: boolean }> {
+  return fetchAPI('/settings/app/quit', { method: 'POST' });
+}
+
 export async function switchModel(modelPath: string): Promise<{
   success: boolean;
   model_path: string;

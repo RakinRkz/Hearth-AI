@@ -15,6 +15,7 @@ if str(src_dir) not in sys.path:
 
 from api.schemas import SettingsSchema, SettingsUpdate, ModeUpdate, ChatMode
 from utils import paths
+from utils import lifecycle
 from api.dependencies import get_chat_mode, set_chat_mode, initialize_llm_service
 from utils.config import get_config, get_config_manager
 from utils.model_downloader import get_model_downloader, RECOMMENDED_MODELS
@@ -352,3 +353,29 @@ async def switch_model(model_path: str):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to switch model: {str(e)}")
+
+
+@router.get("/app/can-quit")
+async def get_can_quit():
+    """Whether this process can shut itself down on request.
+
+    False when running from a source checkout without the tray launcher, so
+    the UI can hide a button that would do nothing.
+    """
+    return {"can_quit": lifecycle.can_shutdown()}
+
+
+@router.post("/app/quit")
+async def quit_app():
+    """Stop Hearth AI.
+
+    Exists because the tray icon is hidden by default on Windows 11, which
+    would otherwise leave the app running with no discoverable way to stop it.
+    Shutdown is deferred briefly so this response reaches the browser first.
+    """
+    if not lifecycle.request_shutdown():
+        raise HTTPException(
+            status_code=501,
+            detail="This instance cannot shut itself down; stop it from the terminal.",
+        )
+    return {"stopping": True}

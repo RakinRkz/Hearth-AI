@@ -74,6 +74,23 @@ jobs:
           test -f dist/HearthAI/_internal/assets/hearth.png || { echo "icon not bundled"; exit 1; }
           echo "bundle contents look right"
 
+      # Signing is optional and skipped entirely when the secrets are absent, so
+      # forks and unsigned builds still work. Without a certificate Windows
+      # SmartScreen warns on first run; no code change can avoid that, only a
+      # real Authenticode signature can. Set WINDOWS_CERT_BASE64 (a base64 .pfx)
+      # and WINDOWS_CERT_PASSWORD to enable.
+      - name: Sign application executable
+        if: env.CERT != ''
+        env:
+          CERT: ${{ secrets.WINDOWS_CERT_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        shell: pwsh
+        run: |
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\cert.pfx", [Convert]::FromBase64String($env:CERT))
+          & signtool sign /f "$env:RUNNER_TEMP\cert.pfx" /p $env:CERT_PASSWORD `
+            /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
+            dist\HearthAI\HearthAI.exe
+
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
 
@@ -81,6 +98,20 @@ jobs:
         run: |
           mkdir -Force dist\installer
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.version.outputs.value }} installer\hearth.iss
+
+      # Sign the installer too - the exe signature inside it is not what
+      # SmartScreen checks when the user downloads and runs Setup.
+      - name: Sign installer
+        if: env.CERT != ''
+        env:
+          CERT: ${{ secrets.WINDOWS_CERT_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        shell: pwsh
+        run: |
+          Get-ChildItem dist\installer\*.exe | ForEach-Object {
+            & signtool sign /f "$env:RUNNER_TEMP\cert.pfx" /p $env:CERT_PASSWORD `
+              /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $_.FullName
+          }
 
       - uses: actions/upload-artifact@v4
         with:

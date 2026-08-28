@@ -8,12 +8,23 @@ import { MessageInput } from './components/chat/MessageInput';
 import { SettingsDialog } from './components/SettingsDialog';
 import { ModelDownloadOverlay } from './components/ModelDownloadOverlay';
 import * as api from './lib/api';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Power } from 'lucide-react';
+
+// Sidebar announces a completed quit this way, avoiding prop drilling through
+// the whole tree for a single terminal event.
+export const QUIT_EVENT = 'hearth:quit';
 
 function AppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [needsModel, setNeedsModel] = useState<boolean | null>(null);
   const [checkingModel, setCheckingModel] = useState(true);
+  const [stopped, setStopped] = useState(false);
+
+  useEffect(() => {
+    const onQuit = () => setStopped(true);
+    window.addEventListener(QUIT_EVENT, onQuit);
+    return () => window.removeEventListener(QUIT_EVENT, onQuit);
+  }, []);
 
   const checkModelStatus = useCallback(async () => {
     try {
@@ -38,6 +49,25 @@ function AppContent() {
     // Optionally reload the page to reinitialize everything
     window.location.reload();
   }, []);
+
+  // Hearth has been asked to stop; the server is going away behind us
+  if (stopped) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="flex max-w-sm flex-col items-center gap-4 px-6 text-center text-foreground">
+          <div className="rounded-full bg-secondary p-4">
+            <Power className="h-7 w-7 text-muted-foreground" />
+          </div>
+          <h1 className="text-xl font-semibold">Hearth AI has stopped</h1>
+          <p className="text-sm text-muted-foreground">
+            The local server has shut down, so this page is no longer connected.
+            You can close this tab. Start Hearth AI again from the Start Menu
+            whenever you need it.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading while checking model status
   if (checkingModel) {
