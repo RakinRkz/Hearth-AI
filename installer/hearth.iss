@@ -49,6 +49,9 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
+; Shown on its own wizard page, and installed alongside the app
+LicenseFile=..\LICENSE
+
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
@@ -58,6 +61,7 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 [Files]
 ; The whole PyInstaller onedir output, including _internal
 Source: "..\dist\HearthAI\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"

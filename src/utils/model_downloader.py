@@ -3,6 +3,7 @@
 import os
 import urllib.request
 import threading
+import time
 from pathlib import Path
 from typing import Optional, Callable, Dict, List, Tuple
 from dataclasses import dataclass
@@ -101,6 +102,34 @@ class ModelDownloader:
         """Get full path to a model file."""
         return str(self.models_dir / filename)
     
+    MAX_ATTEMPTS = 6
+    BACKOFF_SECONDS = 3
+
+    def _open_ranged(self, url: str, offset: int):
+        """Open the URL, asking to continue from `offset` bytes in.
+
+        Returns (response, total_size, resuming). `resuming` is False when the
+        server ignored the Range header and restarted the body, in which case
+        the caller must truncate whatever it already had.
+        """
+        headers = {"User-Agent": "HearthAI/1.0"}
+        if offset:
+            headers["Range"] = f"bytes={offset}-"
+
+        response = urllib.request.urlopen(
+            urllib.request.Request(url, headers=headers), timeout=60
+        )
+
+        resuming = response.status == 206
+        if resuming:
+            # "bytes 244191483-807694463/807694464" - the total is after the slash
+            content_range = response.headers.get("Content-Range", "")
+            total = int(content_range.split("/")[-1]) if "/" in content_range else 0
+        else:
+            total = int(response.headers.get("Content-Length", 0))
+
+        return response, total, resuming
+
     def download_model(
         self,
         model: ModelInfo,
@@ -109,8 +138,15 @@ class ModelDownloader:
         error_callback: Optional[Callable[[str], None]] = None,
     ) -> None:
         """
-        Download a model in background thread.
-        
+        Download a model in a background thread, resuming where possible.
+
+        A model is a multi-GB download over an ordinary home connection, and
+        connections drop. The previous implementation deleted its partial file
+        on any error, so a failure at 90% meant starting from zero with no way
+        to recover - the worst possible failure on a first run. Partial data is
+        now kept and continued with a Range request, and transient network
+        errors are retried with a backoff.
+
         Args:
             model: Model info to download
             progress_callback: Called with (bytes_downloaded, total_bytes)
@@ -118,57 +154,84 @@ class ModelDownloader:
             error_callback: Called with error message on failure
         """
         self._cancel_requested = False
-        
+
         def _download():
             dest_path = self.models_dir / model.filename
             temp_path = self.models_dir / f"{model.filename}.part"
-            
-            try:
-                # Open URL
-                req = urllib.request.Request(
-                    model.url,
-                    headers={"User-Agent": "AI-Chat-App/1.0"}
-                )
-                
-                with urllib.request.urlopen(req) as response:
-                    total_size = int(response.headers.get("Content-Length", 0))
-                    downloaded = 0
-                    chunk_size = 1024 * 1024  # 1MB chunks
-                    
-                    with open(temp_path, "wb") as f:
+            chunk_size = 1024 * 1024
+            last_error = None
+
+            for attempt in range(1, self.MAX_ATTEMPTS + 1):
+                if self._cancel_requested:
+                    break
+
+                offset = temp_path.stat().st_size if temp_path.exists() else 0
+
+                try:
+                    response, total_size, resuming = self._open_ranged(model.url, offset)
+
+                    # Server ignored the Range request - start the file again
+                    if offset and not resuming:
+                        offset = 0
+
+                    downloaded = offset
+                    mode = "ab" if offset else "wb"
+
+                    with response, open(temp_path, mode) as f:
                         while True:
                             if self._cancel_requested:
-                                # Clean up partial download
-                                if temp_path.exists():
-                                    temp_path.unlink()
-                                if error_callback:
-                                    error_callback("Download cancelled")
-                                return
-                            
+                                break
+
                             chunk = response.read(chunk_size)
                             if not chunk:
                                 break
-                            
+
                             f.write(chunk)
                             downloaded += len(chunk)
-                            
+
                             if progress_callback:
                                 progress_callback(downloaded, total_size)
-                
-                # Rename to final path
-                temp_path.rename(dest_path)
-                
-                if complete_callback:
-                    complete_callback(str(dest_path))
-                    
-            except Exception as e:
-                # Clean up partial download
+
+                    if self._cancel_requested:
+                        break
+
+                    # A truncated body reads as a clean EOF, so compare against
+                    # the expected length rather than trusting the loop exit.
+                    if total_size and downloaded < total_size:
+                        last_error = (
+                            f"Connection closed at {downloaded} of {total_size} bytes"
+                        )
+                        print(f"[download] {last_error}; attempt {attempt} of {self.MAX_ATTEMPTS}")
+                        time.sleep(self.BACKOFF_SECONDS)
+                        continue
+
+                    temp_path.replace(dest_path)
+                    if complete_callback:
+                        complete_callback(str(dest_path))
+                    return
+
+                except Exception as e:
+                    last_error = str(e)
+                    print(f"[download] {last_error}; attempt {attempt} of {self.MAX_ATTEMPTS}")
+                    # Keep the partial file: the next attempt resumes from it
+                    if attempt < self.MAX_ATTEMPTS:
+                        time.sleep(self.BACKOFF_SECONDS)
+
+            if self._cancel_requested:
+                # Cancelling is deliberate, so the partial file is discarded
                 if temp_path.exists():
-                    temp_path.unlink()
-                    
+                    try:
+                        temp_path.unlink()
+                    except OSError:
+                        pass
                 if error_callback:
-                    error_callback(str(e))
-        
+                    error_callback("Download cancelled")
+                return
+
+            if error_callback:
+                kept = " Partial download kept; starting again will resume it." if temp_path.exists() else ""
+                error_callback(f"{last_error or 'Download failed'}.{kept}")
+
         self._current_download = threading.Thread(target=_download, daemon=True)
         self._current_download.start()
     
