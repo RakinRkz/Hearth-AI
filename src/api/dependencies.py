@@ -15,6 +15,7 @@ from services.chat_service import ChatService, ChatMode
 from services.rag_service import RAGService
 from services.search_service import SearchService
 from utils.config import get_config, get_config_manager
+from utils import paths
 
 # Service singletons
 _llm_service: Optional[LLMService] = None
@@ -83,8 +84,7 @@ def initialize_services(model_path: Optional[str] = None) -> dict:
         resolved_model_path = config.model_path
     else:
         # Scan for any available model in the models directory
-        models_dir = Path(__file__).parent.parent.parent / config.models_dir
-        gguf_files = list(models_dir.glob("*.gguf"))
+        gguf_files = list(paths.models_dir().glob("*.gguf"))
         if gguf_files:
             resolved_model_path = str(gguf_files[0])
             print(f"Found model: {resolved_model_path}")
@@ -133,7 +133,7 @@ def initialize_services(model_path: Optional[str] = None) -> dict:
     # Initialize RAG Service
     if _embedding_service and _embedding_service.is_loaded:
         try:
-            data_dir = Path(__file__).parent.parent.parent / config.data_dir
+            data_dir = paths.data_dir()
             _rag_service = RAGService(
                 embedding_service=_embedding_service,
                 persist_directory=str(data_dir / "vectorstore"),
@@ -152,7 +152,7 @@ def initialize_services(model_path: Optional[str] = None) -> dict:
     # Initialize Chat Service (requires LLM)
     if _llm_service and _llm_service.is_loaded:
         try:
-            data_dir = Path(__file__).parent.parent.parent / config.data_dir
+            data_dir = paths.data_dir()
             _chat_service = ChatService(
                 llm_service=_llm_service,
                 rag_service=_rag_service,
@@ -253,7 +253,7 @@ def initialize_llm_service(model_path: str) -> bool:
     
     # Reinitialize chat service with new LLM
     if _llm_service and _llm_service.is_loaded:
-        data_dir = Path(__file__).parent.parent.parent / config.data_dir
+        data_dir = paths.data_dir()
         _chat_service = ChatService(
             llm_service=_llm_service,
             rag_service=_rag_service,
@@ -274,7 +274,6 @@ def is_model_needed() -> bool:
     
     # Check if any model files exist
     config = get_config()
-    models_dir = Path(__file__).parent.parent.parent / config.models_dir
-    gguf_files = list(models_dir.glob("*.gguf"))
+    gguf_files = list(paths.models_dir().glob("*.gguf"))
     
     return len(gguf_files) == 0

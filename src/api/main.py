@@ -12,6 +12,7 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 from api.routes import chat, conversations, documents, settings
+from utils import paths
 
 # Create FastAPI app
 app = FastAPI(
@@ -63,11 +64,6 @@ async def model_status():
 
 def mount_static_files(app: FastAPI, frontend_dist: str = "frontend/dist"):
     """Mount static files for production build."""
-    if getattr(sys, "frozen", False):
-        # PyInstaller: bundled data lives under _MEIPASS, not alongside the source
-        base_dir = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
-    else:
-        base_dir = Path(__file__).parent.parent.parent
-    dist_path = base_dir / frontend_dist
+    dist_path = paths.frontend_dist_dir()
     if dist_path.exists():
         app.mount("/", StaticFiles(directory=str(dist_path), html=True), name="static")

@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Optional, Callable, Dict, List, Tuple
 from dataclasses import dataclass
 
+from . import paths
+
 
 @dataclass
 class ModelInfo:
@@ -171,11 +173,4 @@ class ModelDownloader:
 
 def get_model_downloader() -> ModelDownloader:
     """Get a model downloader instance."""
-    from utils.config import get_config
-    config = get_config()
-    
-    # Get absolute models directory
-    app_dir = Path(__file__).parent.parent.parent
-    models_dir = app_dir / config.models_dir
-    
-    return ModelDownloader(str(models_dir))
+    return ModelDownloader(str(paths.models_dir()))

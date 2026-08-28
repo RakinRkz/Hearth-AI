@@ -6,6 +6,8 @@ from pathlib import Path
 from dataclasses import dataclass, field, asdict
 from typing import Optional
 
+from . import paths
+
 
 # Default model for first-run setup
 DEFAULT_MODEL_FILENAME = "Phi-3.5-mini-instruct-Q4_K_M.gguf"
@@ -60,9 +62,9 @@ class ConfigManager:
     
     def _get_default_config_path(self) -> Path:
         """Get the default configuration file path."""
-        # Use app directory for config
-        app_dir = Path(__file__).parent.parent.parent
-        return app_dir / "data" / "config.json"
+        # Resolved via paths so an installed build writes somewhere writable
+        # rather than into its own (possibly read-only) install directory.
+        return paths.config_path()
     
     def _load_config(self) -> AppConfig:
         """Load configuration from file or create default."""

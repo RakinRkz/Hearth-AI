@@ -14,6 +14,7 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 from api.schemas import SettingsSchema, SettingsUpdate, ModeUpdate, ChatMode
+from utils import paths
 from api.dependencies import get_chat_mode, set_chat_mode, initialize_llm_service
 from utils.config import get_config, get_config_manager
 from utils.model_downloader import get_model_downloader, RECOMMENDED_MODELS
@@ -117,7 +118,7 @@ async def update_mode(mode_update: ModeUpdate):
 async def list_models():
     """List available models in the models directory."""
     config = get_config()
-    models_dir = Path(__file__).parent.parent.parent.parent / config.models_dir
+    models_dir = paths.models_dir()
     
     models = []
     if models_dir.exists():
@@ -288,7 +289,7 @@ async def reload_services():
     
     # Find the downloaded model
     config = get_config()
-    models_dir = Path(__file__).parent.parent.parent.parent / config.models_dir
+    models_dir = paths.models_dir()
     gguf_files = list(models_dir.glob("*.gguf"))
     
     if not gguf_files:

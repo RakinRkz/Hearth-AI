@@ -15,6 +15,7 @@ if str(src_dir) not in sys.path:
 from api.schemas import DocumentInfo, DocumentUploadResponse
 from api.dependencies import get_rag_service
 from utils.config import get_config
+from utils import paths
 
 router = APIRouter()
 
@@ -22,7 +23,7 @@ router = APIRouter()
 def get_documents_dir() -> Path:
     """Get the documents directory path."""
     config = get_config()
-    return Path(__file__).parent.parent.parent.parent / config.documents_dir
+    return paths.documents_dir()
 
 
 @router.get("", response_model=List[DocumentInfo])

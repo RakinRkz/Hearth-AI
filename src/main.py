@@ -75,10 +75,17 @@ def main():
     import uvicorn
     from api.main import app, mount_static_files
     from api.dependencies import initialize_services, shutdown_services
-    
+    from utils import paths
+
     print("=" * 50)
     print("Hearth AI - Local AI Application")
     print("=" * 50)
+
+    # Create the writable directories before any service touches them. An
+    # installed build writes to %LOCALAPPDATA% / ~/.local/share rather than to
+    # its own install directory, which may be read-only.
+    paths.ensure_dirs()
+    print(paths.describe())
     
     # Initialize services
     print("\nInitializing services...")
