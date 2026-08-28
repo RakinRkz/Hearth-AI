@@ -55,15 +55,26 @@ IMPORTANT INSTRUCTIONS:
 4. Include specific details (dates, numbers, facts) found in the search results
 5. If information conflicts across sources, mention both and cite both sources
 6. Only say you don't have information if it's truly not in the search results provided
+7. If the search results are irrelevant to what the user actually said - for example
+   they greeted you or made small talk - ignore the results completely, do not cite
+   them, and just reply naturally. Never analyse or describe the search results
+   themselves.
 
 Search Results:
 {context}
 
 Now answer the user's question using the information above:"""
     
-    SEARCH_QUERY_OPTIMIZATION_PROMPT = """Extract optimal web search keywords from the user's question.
+    # NO_SEARCH_SENTINEL is what the optimizer returns when the message is not a
+    # search at all. Kept short and uppercase so a small model reproduces it exactly.
+    NO_SEARCH_SENTINEL = "NONE"
+
+    SEARCH_QUERY_OPTIMIZATION_PROMPT = """Extract optimal web search keywords from the user's message.
 Return ONLY the search keywords, nothing else. Be concise (3-7 words).
 Remove filler words. Focus on key terms that will get relevant search results.
+
+If the message does not need a web search at all - a greeting, small talk, thanks,
+or a question about you rather than about the world - return exactly NONE.
 
 Examples:
 User: "What's the latest news about Tesla's stock price and how it's been performing?"
@@ -74,6 +85,15 @@ Search: Japan earthquake recent news
 
 User: "Who won the Super Bowl this year and what was the final score?"
 Search: Super Bowl 2026 winner final score
+
+User: "Hi"
+Search: NONE
+
+User: "thanks, that was helpful!"
+Search: NONE
+
+User: "who are you?"
+Search: NONE
 
 User: "{question}"
 Search:"""
@@ -198,8 +218,13 @@ Search:"""
             return True
         return False
     
-    def _optimize_search_query(self, user_message: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> str:
-        """Use LLM to extract optimal search keywords from conversation context."""
+    def _optimize_search_query(self, user_message: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> Optional[str]:
+        """Use LLM to extract optimal search keywords from conversation context.
+
+        Returns None when the message does not warrant a web search at all - a
+        greeting, small talk, or a question about the assistant itself. Callers
+        must treat None as "answer directly, do not search".
+        """
         if not self.llm_service or not self.llm_service.is_loaded:
             print("[DEBUG] LLM not available, using original query")
             return user_message
@@ -234,7 +259,14 @@ Search:"""
             )
             
             optimized = result.strip()
-            
+
+            # The model may wrap the sentinel in punctuation or a short sentence;
+            # treat any response that is essentially just NONE as "do not search".
+            stripped = optimized.strip().strip('".\'').upper()
+            if stripped == self.NO_SEARCH_SENTINEL or stripped.startswith(self.NO_SEARCH_SENTINEL + " "):
+                print("[DEBUG] Optimizer says no search needed")
+                return None
+
             # Validate result - if empty or too long, use original
             if not optimized or len(optimized) > 100 or len(optimized) < 3:
                 print(f"[DEBUG] Query optimization failed, using original")
@@ -306,10 +338,18 @@ Search:"""
             for msg in history:
                 conversation_context.append(msg.to_llm_format())
             
-            # Optimize the search query using LLM with full conversation context
+            # Optimize the search query using LLM with full conversation context.
+            # None means the message is not a search at all (a greeting, small talk),
+            # in which case we skip the web entirely and answer as a normal chat -
+            # system_prompt stays as the conversation's own prompt.
             optimized_query = self._optimize_search_query(user_message, conversation_context)
+            if optimized_query is None:
+                print(f"[DEBUG] Search skipped for: '{user_message}' - answering directly")
+                search_metadata = {"query": None, "results": [], "skipped": True}
+                return self._build_messages(system_prompt, user_message), sources, search_metadata
+
             print(f"[DEBUG] Search mode active, original: '{user_message}' -> optimized: '{optimized_query}'")
-            
+
             context, search_sources = self.search_service.get_context_for_query(optimized_query)
             print(f"[DEBUG] Search returned {len(search_sources)} sources, context length: {len(context)}")
             if context:
@@ -333,25 +373,27 @@ Search:"""
             else:
                 print("[DEBUG] No search context returned!")
         
-        # Build messages list
+        return self._build_messages(system_prompt, user_message), sources, search_metadata
+
+    def _build_messages(self, system_prompt: str, user_message: str) -> List[Dict[str, str]]:
+        """Assemble the system prompt, recent history and the new user message."""
         messages = [{"role": "system", "content": system_prompt}]
-        
+
         # Add conversation history (limit to recent messages to fit context)
         history = self.current_conversation.messages
         # Keep only last 6 messages to prevent context overflow
         if len(history) > 6:
             history = history[-6:]
-        
+
         for msg in history:
             messages.append(msg.to_llm_format())
-        
+
         # Add current user message
         messages.append({"role": "user", "content": user_message})
-        
+
         print(f"[DEBUG] Prepared {len(messages)} messages for LLM")
         print(f"[DEBUG] System prompt length: {len(system_prompt)}")
-        
-        return messages, sources, search_metadata
+        return messages
     
     def send_message(
         self,

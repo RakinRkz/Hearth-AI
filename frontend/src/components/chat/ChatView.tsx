@@ -234,6 +234,15 @@ interface PendingSearchInfoProps {
 function PendingSearchInfo({ metadata }: PendingSearchInfoProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  if (metadata.skipped) {
+    return (
+      <div className="mb-2 flex items-center gap-2 rounded-lg border border-border/50 bg-secondary/20 px-3 py-2 text-xs text-muted-foreground">
+        <Search className="h-3.5 w-3.5" />
+        <span>No search needed &mdash; answered directly</span>
+      </div>
+    );
+  }
+
   return (
     <div className="mb-2 rounded-lg border border-border/50 bg-secondary/20 overflow-hidden">
       <button

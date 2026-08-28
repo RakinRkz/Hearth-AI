@@ -103,8 +103,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             break;
           
           case 'search_info':
-            // Store search metadata to attach to the upcoming message
-            if (data.query && data.results) {
+            // Store search metadata to attach to the upcoming message.
+            // When the backend skipped the search, query is null by design -
+            // guard on the skipped flag too or the notice never reaches the UI.
+            if (data.skipped) {
+              setPendingSearchMetadata({
+                query: null,
+                results: [],
+                skipped: true,
+              });
+            } else if (data.query && data.results) {
               setPendingSearchMetadata({
                 query: data.query,
                 results: data.results,

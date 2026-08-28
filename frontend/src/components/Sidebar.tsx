@@ -90,6 +90,12 @@ export function Sidebar({ onSettingsClick }: SidebarProps) {
   };
 
   const handleNewChat = async () => {
+    // Mode is sticky across conversations, so a new chat started after a web
+    // search would silently keep searching - a plain "hi" would be sent to
+    // DuckDuckGo. Reset to plain chat; the user can switch back explicitly.
+    if (mode !== 'chat') {
+      await setMode('chat');
+    }
     // If we already have an active conversation with no messages, just clear and stay
     if (activeConversation && activeConversation.messages.length === 0) {
       clearMessages();

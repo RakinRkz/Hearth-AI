@@ -17,8 +17,10 @@ export interface SearchResult {
 }
 
 export interface SearchMetadata {
-  query: string;
+  // null when the backend decided the message needed no web search at all
+  query: string | null;
   results: SearchResult[];
+  skipped?: boolean;
 }
 
 // Chat message
@@ -151,8 +153,10 @@ export interface WSMessageOut {
   sources?: Source[];
   generating?: boolean;
   conversation_id?: string;
-  query?: string;
+  query?: string | null;
   results?: SearchResult[];
+  // search_info only: true when the backend answered without searching
+  skipped?: boolean;
   status?: string;
   context_usage?: ContextUsage;
   success?: boolean;

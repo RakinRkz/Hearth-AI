@@ -149,7 +149,9 @@ async def websocket_chat(websocket: WebSocket):
                         await websocket.send_json({
                             "type": "search_info",
                             "query": search_metadata["query"],
-                            "results": search_metadata["results"]
+                            "results": search_metadata["results"],
+                            # True when the message needed no web search at all
+                            "skipped": search_metadata.get("skipped", False)
                         })
                     
                     # Stream tokens
@@ -194,10 +196,20 @@ async def websocket_chat(websocket: WebSocket):
                         for s in sources
                     ]
                     
+                    # Persist the search metadata on the message itself. It used
+                    # to live only in React state, so it was lost the moment the
+                    # conversation was reloaded from the server - which happens on
+                    # the first message of every new conversation, taking the
+                    # "Searched: ..." chip with it.
+                    assistant_metadata = {}
+                    if search_metadata:
+                        assistant_metadata["search"] = search_metadata
+
                     assistant_message = chat_service.current_conversation.add_message(
                         MessageRole.ASSISTANT,
                         response_text,
                         sources=assistant_sources,
+                        metadata=assistant_metadata,
                     )
                     
                     # Save conversation
@@ -215,7 +227,7 @@ async def websocket_chat(websocket: WebSocket):
                             "content": response_text,
                             "timestamp": assistant_message.timestamp.isoformat(),
                             "sources": sources,
-                            "metadata": {}
+                            "metadata": assistant_metadata
                         },
                         "sources": sources,
                         "conversation_id": chat_service.current_conversation.id,
