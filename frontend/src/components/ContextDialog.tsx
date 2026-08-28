@@ -16,6 +16,7 @@ import {
   Copy,
 } from 'lucide-react';
 import * as api from '../lib/api';
+import { DEFAULT_SYSTEM_PROMPT } from '../lib/constants';
 
 interface ContextDialogProps {
   open: boolean;
@@ -377,7 +378,7 @@ export function ContextDialog({
                 value={systemPrompt}
                 onChange={(e) => setSystemPrompt(e.target.value)}
                 className="flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-800 p-4 font-mono text-sm text-zinc-200 placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="You are a helpful AI assistant..."
+                placeholder={DEFAULT_SYSTEM_PROMPT}
               />
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-xs text-zinc-500">

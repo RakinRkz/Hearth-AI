@@ -10,6 +10,7 @@ import type {
   DownloadableModel,
   ContextWindow,
 } from './types';
+import { DEFAULT_SYSTEM_PROMPT } from './constants';
 
 const API_BASE = '/api';
 
@@ -62,7 +63,7 @@ export async function createConversation(
     method: 'POST',
     body: JSON.stringify({
       title: title || 'New Conversation',
-      system_prompt: systemPrompt || 'You are a helpful AI assistant.',
+      system_prompt: systemPrompt || DEFAULT_SYSTEM_PROMPT,
     }),
   });
 }

@@ -5,6 +5,8 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
 
+from models.conversation import DEFAULT_SYSTEM_PROMPT
+
 
 class ChatMode(str, Enum):
     """Chat mode options."""
@@ -62,7 +64,7 @@ class ConversationDetail(BaseModel):
 class ConversationCreate(BaseModel):
     """Schema for creating a new conversation."""
     title: Optional[str] = "New Conversation"
-    system_prompt: Optional[str] = "You are a helpful AI assistant."
+    system_prompt: Optional[str] = DEFAULT_SYSTEM_PROMPT
 
 
 # ============== Document Schemas ==============

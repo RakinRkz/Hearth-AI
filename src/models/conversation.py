@@ -9,6 +9,13 @@ from uuid import uuid4
 
 from .message import Message, MessageRole
 
+# Single source of truth for the assistant's identity. The underlying GGUF
+# model will otherwise introduce itself by its own name ("I'm Phi..."), which
+# is confusing when the product is called Hearth.
+DEFAULT_SYSTEM_PROMPT = (
+    "You are Hearth, a helpful AI assistant. You run entirely on the user's own computer, so their data never leaves it. If you are asked who or what you are, say you are Hearth."
+)
+
 
 @dataclass
 class Conversation:
@@ -16,7 +23,7 @@ class Conversation:
     id: str = field(default_factory=lambda: str(uuid4()))
     title: str = "New Conversation"
     messages: List[Message] = field(default_factory=list)
-    system_prompt: str = "You are a helpful AI assistant."
+    system_prompt: str = DEFAULT_SYSTEM_PROMPT
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -67,7 +74,7 @@ class Conversation:
             id=data["id"],
             title=data["title"],
             messages=[Message.from_dict(m) for m in data["messages"]],
-            system_prompt=data.get("system_prompt", "You are a helpful AI assistant."),
+            system_prompt=data.get("system_prompt", DEFAULT_SYSTEM_PROMPT),
             created_at=datetime.fromisoformat(data["created_at"]),
             updated_at=datetime.fromisoformat(data["updated_at"]),
             metadata=data.get("metadata", {})

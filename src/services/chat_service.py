@@ -15,7 +15,7 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 from models.message import Message, MessageRole, Source
-from models.conversation import Conversation
+from models.conversation import Conversation, DEFAULT_SYSTEM_PROMPT
 
 
 class ChatMode(Enum):
@@ -28,7 +28,7 @@ class ChatMode(Enum):
 class ChatService:
     """Service for managing chat conversations."""
     
-    RAG_SYSTEM_TEMPLATE = """You are a helpful AI assistant with access to relevant document content.
+    RAG_SYSTEM_TEMPLATE = """You are Hearth, a helpful AI assistant with access to relevant document content.
 
 Your task is to answer the user's question based on the document content provided below. The content comes from documents that have been analyzed and matched to the query.
 
@@ -44,7 +44,7 @@ Document Content:
 
 Now answer the user's question using the information above:"""
     
-    SEARCH_SYSTEM_TEMPLATE = """You are a helpful AI assistant with access to current web search results.
+    SEARCH_SYSTEM_TEMPLATE = """You are Hearth, a helpful AI assistant with access to current web search results.
 
 Your task is to answer the user's question using the search results provided below. The search results include the actual content from web pages, not just snippets.
 
@@ -119,7 +119,7 @@ Search:"""
     def new_conversation(self, system_prompt: Optional[str] = None) -> Conversation:
         """Create a new conversation."""
         self.current_conversation = Conversation(
-            system_prompt=system_prompt or "You are a helpful AI assistant."
+            system_prompt=system_prompt or DEFAULT_SYSTEM_PROMPT
         )
         return self.current_conversation
     

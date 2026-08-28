@@ -5,6 +5,7 @@ import { MessageBubble } from './MessageBubble';
 import { ContextDialog } from '../ContextDialog';
 import { Bot, Settings2, Search, ChevronDown, ChevronRight, ExternalLink, Sparkles, ArrowDown } from 'lucide-react';
 import type { SearchMetadata } from '../../lib/types';
+import { DEFAULT_SYSTEM_PROMPT } from '../../lib/constants';
 
 export function ChatView() {
   const { messages, streamingContent, isGenerating, isSummarizing, pendingSearchMetadata, setMessages } = useChat();
@@ -89,7 +90,7 @@ export function ChatView() {
           open={contextDialogOpen}
           onClose={() => setContextDialogOpen(false)}
           conversationId={activeConversation?.id ?? null}
-          currentSystemPrompt={activeConversation?.system_prompt ?? 'You are a helpful AI assistant.'}
+          currentSystemPrompt={activeConversation?.system_prompt ?? DEFAULT_SYSTEM_PROMPT}
           onSystemPromptUpdate={handleSystemPromptUpdate}
         />
       </div>
@@ -203,7 +204,7 @@ export function ChatView() {
         open={contextDialogOpen}
         onClose={() => setContextDialogOpen(false)}
         conversationId={activeConversation?.id ?? null}
-        currentSystemPrompt={activeConversation?.system_prompt ?? 'You are a helpful AI assistant.'}
+        currentSystemPrompt={activeConversation?.system_prompt ?? DEFAULT_SYSTEM_PROMPT}
         onSystemPromptUpdate={handleSystemPromptUpdate}
       />
     </div>
