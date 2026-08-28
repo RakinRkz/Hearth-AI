@@ -7,7 +7,7 @@ and search the web with AI-summarized results. No cloud, no API keys, your data 
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
 
-<!-- 👇 Add a screenshot or short GIF of a chat + a document Q&A here. This matters most. -->
+![Hearth AI running a local chat](docs/screenshot.png)
 
 ## Why
 
