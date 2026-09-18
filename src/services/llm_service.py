@@ -85,6 +85,11 @@ class LLMService:
         self._actual_gpu_layers = 0  # Track actual layers used
         self._cancel_generation = False  # Flag to cancel ongoing generation
         self._is_generating = False  # Track if generation is in progress
+        # Why the last generation ended: "stop" when the model finished, or
+        # "length" when it hit max_tokens. Without this the app cannot tell a
+        # finished answer from one severed mid-sentence, and neither can the
+        # user - they just see the text stop.
+        self.last_finish_reason = None
     
     @property
     def is_loaded(self) -> bool:
@@ -153,6 +158,7 @@ class LLMService:
             stop=stop,
         )
         
+        self.last_finish_reason = response["choices"][0].get("finish_reason")
         return response["choices"][0]["message"]["content"]
     
     def generate_stream(
@@ -176,8 +182,12 @@ class LLMService:
             stream=True,
         )
         
+        self.last_finish_reason = None
         for chunk in response:
-            delta = chunk["choices"][0]["delta"]
+            choice = chunk["choices"][0]
+            if choice.get("finish_reason"):
+                self.last_finish_reason = choice["finish_reason"]
+            delta = choice.get("delta", {})
             if "content" in delta:
                 yield delta["content"]
     

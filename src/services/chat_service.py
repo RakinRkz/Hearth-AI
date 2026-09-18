@@ -174,7 +174,11 @@ Search:"""
         if not self.current_conversation:
             return max(128, min(requested_max_tokens, 4096))
         
-        context_window = 8000  # Model's context window
+        # The real window, not a guess. This was hardcoded to 8000 while the
+        # configured default is 2048, so the calculation believed it had four
+        # times the room it actually had and would approve a response that
+        # overflows the context.
+        context_window = self.llm_service.context_length if self.llm_service else 2048
         current_tokens = self.current_conversation.get_context_token_count(self.conversations_dir)
         
         # Reserve 10% buffer for prompt overhead and safety margin

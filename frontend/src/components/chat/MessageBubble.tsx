@@ -134,6 +134,15 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
           )}
         </div>
 
+        {wasTruncated(message) && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300/90">
+            <span>
+              This reply hit the length limit and stopped early. Raise
+              &ldquo;Max tokens&rdquo; in Settings, or ask Hearth to continue.
+            </span>
+          </div>
+        )}
+
         {/* Sources */}
         {message.sources && message.sources.length > 0 && (
           <SourcesList sources={message.sources} />
@@ -160,6 +169,10 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
 
 interface SearchInfoProps {
   metadata: SearchMetadata;
+}
+
+function wasTruncated(message: Message): boolean {
+  return message.metadata?.truncated === true;
 }
 
 function resolveSearchMetadata(message: Message): SearchMetadata | undefined {

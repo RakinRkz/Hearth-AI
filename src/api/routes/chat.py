@@ -205,6 +205,12 @@ async def websocket_chat(websocket: WebSocket):
                     if search_metadata:
                         assistant_metadata["search"] = search_metadata
 
+                    # A reply stopped by max_tokens ends mid-sentence, sometimes
+                    # mid-word. Record it so the UI can say so rather than
+                    # leaving the user to guess whether the model simply stopped.
+                    if getattr(llm_service, "last_finish_reason", None) == "length":
+                        assistant_metadata["truncated"] = True
+
                     assistant_message = chat_service.current_conversation.add_message(
                         MessageRole.ASSISTANT,
                         response_text,
