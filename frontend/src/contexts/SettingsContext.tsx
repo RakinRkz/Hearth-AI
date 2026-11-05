@@ -74,14 +74,48 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateSettings = useCallback(async (newSettings: Partial<Settings>) => {
+    const previousSettings = settings;
+    const reloadRequired =
+      previousSettings !== null &&
+      (newSettings.context_length !== undefined || newSettings.gpu_layers !== undefined);
+    let settingsUpdated = false;
+
     try {
       const updated = await api.updateSettings(newSettings);
+      settingsUpdated = true;
+
+      if (reloadRequired) {
+        const reload = await api.reloadServices();
+        if (!reload.success) {
+          const errors = Object.values(reload.status)
+            .filter((value): value is string[] => Array.isArray(value))
+            .flat();
+          throw new Error(errors.join(', ') || 'Failed to reload the model');
+        }
+      }
       setSettings(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update settings');
+      let errorMessage = err instanceof Error ? err.message : 'Failed to update settings';
+      if (previousSettings && settingsUpdated && reloadRequired) {
+        try {
+          await api.updateSettings({
+            context_length: previousSettings.context_length,
+            gpu_layers: previousSettings.gpu_layers,
+          });
+          const rollback = await api.reloadServices();
+          if (!rollback.success) {
+            errorMessage += '; failed to restore the previous model settings';
+          }
+        } catch {
+          errorMessage += '; failed to restore the previous model settings';
+        } finally {
+          setSettings(previousSettings);
+        }
+      }
+      setError(errorMessage);
       throw err;
     }
-  }, []);
+  }, [settings]);
 
   const mode = settings?.mode ?? 'chat';
 
